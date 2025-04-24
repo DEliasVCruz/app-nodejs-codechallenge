@@ -1,20 +1,19 @@
-import { DateTime } from "luxon";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import type { EachBatchHandler, Producer, Message } from "kafkajs";
+import type { EachBatchHandler } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
-  fraudTransactionVeridictMessage,
-  type FraudTransactionVeridictEvent,
-  type TransferUpdateMessage,
-} from "@/schemas";
+  transactionCreatedMessage,
+  type TransactionUpdateMessage,
+} from "@bk/schemas";
 
 type MessageParsedPayload = {
   offset: string;
-  value: SafeParseSuccess<FraudTransactionVeridictEvent>;
+  value: SafeParseSuccess<TransactionUpdateMessage>;
 };
 
-export const handler: (producer: Producer) => EachBatchHandler = (
-  producer: Producer,
+export const handler: (db: NodePgDatabase) => EachBatchHandler = (
+  db: NodePgDatabase,
 ) => {
   const batchTransferUpdateHandler: EachBatchHandler = async ({
     batch,
@@ -26,7 +25,7 @@ export const handler: (producer: Producer) => EachBatchHandler = (
   }) => {
     const messages = batch.messages
       .map(async (messgae) => {
-        const parsedValue = await fraudTransactionVeridictMessage.spa(
+        const parsedValue = await transactionCreatedMessage.spa(
           messgae.value?.toString(),
         );
 
@@ -38,7 +37,6 @@ export const handler: (producer: Producer) => EachBatchHandler = (
         });
       });
 
-    const responses: Array<Message> = [];
     const processedOffsets: Array<string> = [];
 
     messages.forEach(async (message) => {
@@ -50,27 +48,11 @@ export const handler: (producer: Producer) => EachBatchHandler = (
 
       // Send to tiger beatle for processing
 
-      const response: TransferUpdateMessage = {
-        transaction_id: payload.value.data.transaction_id,
-        number: payload.value.data.number.toString(),
-        debit_account_id: payload.value.data.debit_account_id.toString(),
-        credit_account_id: payload.value.data.credit_account_id.toString(),
-        update_date: DateTime.utc().toISO(),
-        status: payload.value.data.status,
-        scale: 6,
-      };
-
-      responses.push({ value: JSON.stringify(response) });
       processedOffsets.push(payload.offset);
 
       await commitOffsetsIfNecessary();
 
       await heartbeat();
-    });
-
-    await producer.send({
-      topic: "transaction-update",
-      messages: responses,
     });
 
     await commitOffsetsIfNecessary();

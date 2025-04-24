@@ -16,16 +16,26 @@ export type TransactionValidateMessage = z.infer<
   typeof transactionValidateMessage
 >;
 
-const TRANSACTION_STATUS = ["approved", "rejected"] as const;
-type TransactionStatus = (typeof TRANSACTION_STATUS)[number];
+const TRANSACTION_STATUS = ["approved", "rejected", "pending"] as const;
+export type TransactionStatus = (typeof TRANSACTION_STATUS)[number];
 
-export type FraudTransactionVeridictEvent =
-  | Partial<TransactionValidateMessage>
+export const fraudTransactionVeridict = z
+  .object({
+    status: z.enum(TRANSACTION_STATUS),
+  })
+  .merge(transactionValidateMessage)
+  .partial({
+    scale: true,
+    creation_date: true,
+  });
+
+export type FraudTransactionVeridict = z.infer<typeof fraudTransactionVeridict>;
+
+export type FraudTransactionVeridictMessage =
+  | FraudTransactionVeridict
   | {
       number: string;
       debit_account_id: string;
       credit_account_id: string;
       amount: string;
-      code: number;
-      status: TransactionStatus;
     };

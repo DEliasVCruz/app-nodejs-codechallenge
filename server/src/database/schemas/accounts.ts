@@ -57,7 +57,6 @@ export const transactionsTable = pgTable("transactions", {
     .notNull()
     .references(() => accountsTable.number),
   value: decimal<"number">({ precision: 11, scale: 2 }).notNull(),
-  type: varchar({ length: 100 }).notNull(),
   creation_date: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

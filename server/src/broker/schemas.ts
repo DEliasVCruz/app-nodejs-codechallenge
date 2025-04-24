@@ -1,0 +1,68 @@
+import type { EachBatchHandler } from "kafkajs";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+
+import { z } from "zod";
+
+import { handler as transactionCreatedHandler } from "@bk/handlers/transaction_created";
+import { handler as transactionUpdateHandler } from "@bk/handlers/transaction_updated";
+
+const TRANSACTION_STATUS = ["approved", "rejected", "pending"] as const;
+export type TransactionStatus = (typeof TRANSACTION_STATUS)[number];
+
+export const CONSUMER_TOPICS = [
+  // "account-created",
+  "transaction-created",
+  "transaction-update",
+] as const;
+
+export type ConsumerTopics = (typeof CONSUMER_TOPICS)[number];
+
+export const transferRequestMessage = z.object({
+  number: z.coerce.bigint().positive(),
+  debit_account_id: z.coerce.bigint().positive(),
+  credit_account_id: z.coerce.bigint().positive(),
+  amount: z.coerce.bigint().positive(),
+  code: z.coerce.number().positive(),
+  ledger: z.coerce.number().positive(),
+});
+
+export type TransferRequest = z.infer<typeof transferRequestMessage>;
+
+export const transactionCreatedMessage = z
+  .object({
+    status: z.enum(TRANSACTION_STATUS),
+    transaction_id: z.string(),
+    creation_date: z.string(),
+  })
+  .merge(transferRequestMessage);
+
+export type TransactionCreatedMessage = z.infer<
+  typeof transactionCreatedMessage
+>;
+
+export const transactionUpdatedMessage = z
+  .object({
+    update_date: z.string(),
+  })
+  .merge(transactionCreatedMessage)
+  .partial({
+    amount: true,
+    code: true,
+    creation_date: true,
+  });
+
+export type TransactionUpdateMessage = z.infer<
+  typeof transactionUpdatedMessage
+>;
+
+const TOPIC_CONSUMER_HANDLER_MAP: Record<
+  ConsumerTopics,
+  (producer: NodePgDatabase) => EachBatchHandler
+> = {
+  "transaction-created": transactionCreatedHandler,
+  "transaction-update": transactionUpdateHandler,
+};
+
+export const getConsumerHandler = (topic: ConsumerTopics) => {
+  return TOPIC_CONSUMER_HANDLER_MAP[topic];
+};

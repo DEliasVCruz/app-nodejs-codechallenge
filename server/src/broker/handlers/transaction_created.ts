@@ -1,25 +1,19 @@
-import { DateTime } from "luxon";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { customAlphabet } from "nanoid";
-
-const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz_-";
-const nanoid = customAlphabet(alphabet, 29);
-
-import type { EachBatchHandler, Producer, Message } from "kafkajs";
+import type { EachBatchHandler } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
   transferRequestMessage,
-  type TransferRequest,
-  type TransferCreatedMessage,
-} from "@/schemas";
+  type TransactionCreatedMessage,
+} from "@bk/schemas";
 
 type MessageParsedPayload = {
   offset: string;
-  value: SafeParseSuccess<TransferRequest>;
+  value: SafeParseSuccess<TransactionCreatedMessage>;
 };
 
-export const handler: (producer: Producer) => EachBatchHandler = (
-  producer: Producer,
+export const handler: (db: NodePgDatabase) => EachBatchHandler = (
+  db: NodePgDatabase,
 ) => {
   const batchTransferRequestHandler: EachBatchHandler = async ({
     batch,
@@ -43,7 +37,6 @@ export const handler: (producer: Producer) => EachBatchHandler = (
         });
       });
 
-    const responses: Array<Message> = [];
     const processedOffsets: Array<string> = [];
 
     messages.forEach(async (message) => {
@@ -53,32 +46,13 @@ export const handler: (producer: Producer) => EachBatchHandler = (
         return content;
       })) as MessageParsedPayload;
 
-      // Send to tiger beatle for processing
+      // Create transaction record in database
 
-      const response: TransferCreatedMessage = {
-        transaction_id: nanoid(),
-        number: payload.value.data.number.toString(),
-        amount: payload.value.data.amount.toString(),
-        debit_account_id: payload.value.data.debit_account_id.toString(),
-        credit_account_id: payload.value.data.credit_account_id.toString(),
-        creation_date: DateTime.utc().toISO(),
-        code: payload.value.data.code,
-        ledger: payload.value.data.ledger,
-        status: "pending",
-        scale: 6,
-      };
-
-      responses.push({ value: JSON.stringify(response) });
       processedOffsets.push(payload.offset);
 
       await commitOffsetsIfNecessary();
 
       await heartbeat();
-    });
-
-    await producer.send({
-      topic: "transaction-created",
-      messages: responses,
     });
 
     await commitOffsetsIfNecessary();

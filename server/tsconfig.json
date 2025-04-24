@@ -24,6 +24,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@db/*": ["./src/database/*"],
+      "@bk/*": ["./src/broker/*"],
       "@accounts/*": ["./src/routes/accounts/*"],
       "@users/*": ["./src/routes/users/*"],
       "@transactions/*": ["./src/routes/transactions/*"]

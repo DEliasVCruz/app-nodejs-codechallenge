@@ -6,6 +6,9 @@ import { kafkaBrokerPlugin } from "@/broker/plugin";
 
 import { Kafka, type Consumer } from "kafkajs";
 
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+
 import auth, { type FastifyAuthFunction } from "@fastify/auth";
 import bearerAuthPlugin from "@fastify/bearer-auth";
 
@@ -18,6 +21,8 @@ import { router as accountsRouter } from "@accounts/endpoints/router";
 import { router as transactionsRouter } from "@transactions/endpoints/router";
 
 import type { UserModel } from "@users/schemas";
+
+import { CONSUMER_TOPICS, getConsumerHandler } from "@bk/schemas";
 
 const dbURL = process.env.DATABASE_URL;
 if (!dbURL) {
@@ -86,11 +91,18 @@ const kafka = new Kafka({
   brokers: ["localhost:9092"],
 });
 
-const topics = ["account-created", "transaction-created", "transaction-update"];
 const consumers: Array<Consumer> = [];
 
-topics.forEach(async (topic) => {
-  const consumer = kafka.consumer({ groupId: `api-consumer-${topic}` });
+const pool = new Pool({
+  connectionString: dbURL,
+});
+
+const db = drizzle({ client: pool });
+
+CONSUMER_TOPICS.forEach(async (topic) => {
+  const consumer = kafka.consumer({
+    groupId: `api-consumer-${topic}`,
+  });
   consumers.push(consumer);
 
   await consumer.connect();
@@ -98,13 +110,13 @@ topics.forEach(async (topic) => {
     topics: [topic],
   });
 
+  const handler = getConsumerHandler(topic);
+
   await consumer.run({
-    eachMessage: async ({ topic, message }) => {
-      console.log("The topic", topic);
-      if (message.value != null) {
-        console.log("The message", message.value.toString());
-      }
-    },
+    eachBatchAutoResolve: true,
+    autoCommitInterval: 5000,
+    autoCommitThreshold: 1000,
+    eachBatch: handler(db),
   });
 });
 

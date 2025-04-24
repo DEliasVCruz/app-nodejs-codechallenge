@@ -3,7 +3,7 @@ import type { SafeParseSuccess } from "zod";
 import {
   transactionValidateMessage,
   type TransactionValidateMessage,
-  type FraudTransactionVeridictEvent,
+  type FraudTransactionVeridictMessage,
 } from "./schemas";
 
 type MessageParsedPayload = {
@@ -49,13 +49,14 @@ export const handler: (producer: Producer) => EachBatchHandler = (
       const scale = BigInt(payload.value.data.scale);
       const value = payload.value.data.amount * ((1n / 10n) ^ scale);
 
-      const response: FraudTransactionVeridictEvent = {
+      const response: FraudTransactionVeridictMessage = {
         number: payload.value.data.number.toString(),
         transaction_id: payload.value.data.transaction_id,
         amount: payload.value.data.amount.toString(),
         debit_account_id: payload.value.data.debit_account_id.toString(),
         credit_account_id: payload.value.data.credit_account_id.toString(),
         code: 401,
+        ledger: payload.value.data.ledger,
         status: value > 1000n ? "rejected" : "approved",
       };
 
