@@ -3,9 +3,7 @@ import "dotenv/config";
 import { Kafka } from "kafkajs";
 
 import { fastify } from "fastify";
-// import { transferRequestMessage } from "./schemas";
-
-import { batchFraudDetectionHandler } from "./handler";
+import { handler } from "./handler";
 
 const kafka = new Kafka({
   clientId: "fraud-detection-service",
@@ -23,9 +21,14 @@ await consumer.subscribe({
   topics: [topic],
 });
 
+const producer = kafka.producer();
+await producer.connect();
+
 await consumer.run({
   eachBatchAutoResolve: true,
-  eachBatch: batchFraudDetectionHandler,
+  autoCommitInterval: 5000,
+  autoCommitThreshold: 1000,
+  eachBatch: handler(producer),
 });
 
 const app = fastify({
