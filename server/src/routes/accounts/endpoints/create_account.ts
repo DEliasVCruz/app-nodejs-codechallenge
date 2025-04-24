@@ -1,5 +1,4 @@
 import type { FastifyInstance, RouteOptions } from "fastify";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 
 import {
@@ -9,7 +8,7 @@ import {
 } from "@accounts/schemas";
 import { createUserAccount } from "@accounts/functions/create_account";
 
-import { type UserModel } from "@users/schemas";
+import type { UserModel } from "@users/schemas";
 
 const create_account = async (app: FastifyInstance, _: RouteOptions) => {
   const route = app.withTypeProvider<ZodTypeProvider>();
@@ -32,16 +31,14 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
       // We add the account to the cache (we dont' fail if this errors out)
 
       const user = req.getDecorator<UserModel>("user");
-      const db = app.getDecorator<NodePgDatabase>("postgresqlDB");
 
-      console.log("The db", db);
-      const account = await createUserAccount(db, {
+      const account = await createUserAccount(app.pgdb, {
         account_name: req.body.name,
         currency: req.body.currency,
         type: req.body.type,
         user_id: user.id,
       });
-      if (!account) {
+      if (account == undefined) {
         res.code(500);
 
         return { message: "failed to create account" };
@@ -50,9 +47,8 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
       res.code(201);
 
       return {
-        message: `user account created with name ${req.body.name}`,
+        message: "account creation request accepted",
         status: "pending",
-        account_id: account.account_id,
       };
     },
   );

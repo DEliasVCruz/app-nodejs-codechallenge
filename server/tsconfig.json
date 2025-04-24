@@ -1,8 +1,6 @@
 {
   "compilerOptions": {
     "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "module": "ESNext",
     "target": "ESNext",
     "strict": true,
     "useUnknownInCatchVariables": true,
@@ -11,10 +9,17 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "outDir": "dist",
-    "esModuleInterop": true,
     "exactOptionalPropertyTypes": true,
     "noImplicitReturns": true,
     "noUncheckedIndexedAccess": true,
+		"moduleDetection": "force",
+		"module": "Preserve",
+		"resolveJsonModule": true,
+		"allowJs": true,
+		"esModuleInterop": true,
+		"isolatedModules": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
@@ -23,7 +28,9 @@
       "@users/*": ["./src/routes/users/*"],
       "@transactions/*": ["./src/routes/transactions/*"]
     },
-    "skipLibCheck": true
   },
-  "exclude": ["node_modules", "./dist/**/*"]
+  "exclude": ["node_modules", "./dist/**/*"],
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  },
 }

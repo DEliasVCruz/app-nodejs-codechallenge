@@ -11,11 +11,16 @@ const insert = async (db: NodePgDatabase, account: NewAccount) => {
       .values(account)
       .returning({ number: accountsTable.number, id: accountsTable.id })
       .then((result) => {
-        const account = result[0];
+        const value = result[0];
 
-        if (!account) {
+        if (!value) {
           return rej("create account record failed");
         }
+
+        const account = {
+          number: BigInt(value.number),
+          id: value.id,
+        };
 
         return res(account);
       });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-const MAX_ACCOUNT_NAME_LENGTH = 120;
-const MAX_ACCOUNT_NUMER_LENGTH = 9;
+export const MAX_ACCOUNT_NAME_LENGTH = 255;
+export const MAX_ACCOUNT_NUMER_LENGTH = 22;
 
 const USER_ACCOUNT_STATUS = ["pending", "enabled"] as const;
 const ACCOUNT_CURRENCY_TYPES = ["pen", "usd"] as const;
@@ -15,11 +15,11 @@ export type UserAccountType = (typeof USER_ACCOUNT_TYPES)[number];
 export type UserAccountCurrency = (typeof ACCOUNT_CURRENCY_TYPES)[number];
 
 export const getAccountTypeIdByName = (type: UserAccountType) => {
-  return USER_ACCOUNT_TYPES.indexOf(type);
+  return USER_ACCOUNT_TYPES.indexOf(type) + 1;
 };
 
 export const getAccountLedgerByCurrencyName = (type: UserAccountCurrency) => {
-  return 1000 + ACCOUNT_CURRENCY_TYPES.indexOf(type);
+  return 1000 + ACCOUNT_CURRENCY_TYPES.indexOf(type) + 1;
 };
 
 export const createAccountRequest = z.object({
@@ -41,10 +41,9 @@ export const createAccountRequest = z.object({
   }),
 });
 
-export const userAccountCreationSuccess = z.object({
+export const userAccountCreationAccepted = z.object({
   message: z.string(),
   status: z.enum(USER_ACCOUNT_STATUS),
-  account_id: z.number().max(MAX_ACCOUNT_NUMER_LENGTH),
 });
 
 export const userAccountCreationFailed = z.object({

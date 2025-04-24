@@ -1,31 +1,37 @@
 import "dotenv/config";
 
+import { fastify, type FastifyPluginCallback } from "fastify";
+import { pgDatabasePlugin } from "@db/plugin";
+
 import auth, { type FastifyAuthFunction } from "@fastify/auth";
 import bearerAuthPlugin from "@fastify/bearer-auth";
-
-import { fastify, type FastifyPluginCallback } from "fastify";
 
 import {
   serializerCompiler,
   validatorCompiler,
 } from "fastify-type-provider-zod";
 
-import { router as accountsRouter } from "@server/accounts";
-import { router as transactionsRouter } from "@server/transactions";
+import { router as accountsRouter } from "@accounts/endpoints/router";
+import { router as transactionsRouter } from "@transactions/endpoints/router";
+
+import type { UserModel } from "@users/schemas";
+
+const dbURL = process.env.DATABASE_URL;
+if (!dbURL) {
+  throw new Error("missing database url");
+}
 
 const app = fastify({
   logger: true,
 });
+
+app.register(pgDatabasePlugin, { databaseUrl: dbURL });
 
 // Add schema validator and serializer
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);
 
 app.decorateRequest("user", null);
-
-app.register(fp(drizzelPGPlugin, { name: "drizzel-pg-plugin" }), {
-  postgresqlDB: process.env.DATABASE_URL ?? "",
-});
 
 app
   .register(auth)

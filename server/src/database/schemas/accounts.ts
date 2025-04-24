@@ -6,14 +6,21 @@ import {
   integer,
   smallint,
   timestamp,
-  bigint,
   char,
 } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
+import {
+  MAX_ACCOUNT_NAME_LENGTH,
+  MAX_ACCOUNT_NUMER_LENGTH,
+} from "@accounts/schemas";
+
 export const accountsTable = pgTable("accounts", {
-  id: char({ length: 22 }).unique().primaryKey().notNull(),
-  number: bigint({ mode: "bigint" }).unique().notNull(),
+  id: char({ length: MAX_ACCOUNT_NUMER_LENGTH })
+    .unique()
+    .primaryKey()
+    .notNull(),
+  number: varchar({ length: 120 }).unique().notNull(),
   user_id: char({ length: 12 })
     .unique()
     .notNull()
@@ -21,7 +28,7 @@ export const accountsTable = pgTable("accounts", {
   balance: decimal<"number">({ precision: 11, scale: 2 })
     .notNull()
     .default(0.0),
-  name: varchar({ length: 255 }).notNull(),
+  name: varchar({ length: MAX_ACCOUNT_NAME_LENGTH }).notNull(),
   ledger_id: integer()
     .unique()
     .notNull()
@@ -40,12 +47,12 @@ export const accountsTable = pgTable("accounts", {
 
 export const transactionsTable = pgTable("transactions", {
   id: char({ length: 29 }).unique().primaryKey().notNull(),
-  number: bigint({ mode: "bigint" }).unique().notNull(),
-  debit_account_number: bigint({ mode: "bigint" })
+  number: varchar({ length: 120 }).unique().notNull(),
+  debit_account_number: varchar({ length: 120 })
     .unique()
     .notNull()
     .references(() => accountsTable.number),
-  credit_account_number: bigint({ mode: "bigint" })
+  credit_account_number: varchar({ length: 120 })
     .unique()
     .notNull()
     .references(() => accountsTable.number),
