@@ -1,4 +1,4 @@
-import type { EachBatchHandler, Producer } from "kafkajs";
+import type { EachBatchHandler, Producer, Message } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
   transactionValidateMessage,
@@ -36,6 +36,9 @@ export const handler: (producer: Producer) => EachBatchHandler = (
         });
       });
 
+    const responses: Array<Message> = [];
+    const processedOffsets: Array<string> = [];
+
     messages.forEach(async (message) => {
       if (!isRunning() || isStale()) return;
 
@@ -47,21 +50,33 @@ export const handler: (producer: Producer) => EachBatchHandler = (
       const value = payload.value.data.amount * ((1n / 10n) ^ scale);
 
       const response: FraudTransactionVeridictEvent = {
-        id: payload.value.data.id.toString(),
+        number: payload.value.data.number.toString(),
+        transaction_id: payload.value.data.transaction_id,
         amount: payload.value.data.amount.toString(),
+        debit_account_id: payload.value.data.debit_account_id.toString(),
+        credit_account_id: payload.value.data.credit_account_id.toString(),
         code: 401,
         status: value > 1000n ? "rejected" : "approved",
       };
 
-      await producer.send({
-        topic: "transaction-update",
-        messages: [{ value: JSON.stringify(response) }],
-      });
+      responses.push({ value: JSON.stringify(response) });
+      processedOffsets.push(payload.offset);
 
-      resolveOffset(payload.offset);
-      commitOffsetsIfNecessary();
+      await commitOffsetsIfNecessary();
 
       await heartbeat();
+    });
+
+    await producer.send({
+      topic: "transaction-fraud-validation",
+      messages: responses,
+    });
+
+    await commitOffsetsIfNecessary();
+
+    processedOffsets.forEach(async (offset) => {
+      resolveOffset(offset);
+      await commitOffsetsIfNecessary();
     });
   };
 
