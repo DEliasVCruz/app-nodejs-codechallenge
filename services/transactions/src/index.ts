@@ -1,23 +1,19 @@
 import "dotenv/config";
 
-import { Kafka, type Consumer } from "kafkajs";
+import { Kafka, type Consumer, type Producer } from "kafkajs";
 
 import { fastify } from "fastify";
-// import { transferRequestMessage } from "./schemas";
+import { getConsumerHandler, CONSUMER_TOPICS } from "@/schemas";
 
 const kafka = new Kafka({
   clientId: "transactions-service",
   brokers: ["localhost:9092"],
 });
 
-const topics = [
-  "transfer-request",
-  "transaction-fraud-validation",
-  "account-creation-request",
-];
 const consumers: Array<Consumer> = [];
+const producers: Array<Producer> = [];
 
-topics.forEach(async (topic) => {
+CONSUMER_TOPICS.forEach(async (topic) => {
   const consumer = kafka.consumer({
     groupId: `transactions-consumer-${topic}`,
   });
@@ -28,13 +24,18 @@ topics.forEach(async (topic) => {
     topics: [topic],
   });
 
+  const producer = kafka.producer();
+  await producer.connect();
+
+  producers.push(producer);
+
+  const handler = getConsumerHandler(topic);
+
   await consumer.run({
-    eachMessage: async ({ topic, message }) => {
-      console.log("The topic", topic);
-      if (message.value != null) {
-        console.log("The message", message.value.toString());
-      }
-    },
+    eachBatchAutoResolve: true,
+    autoCommitInterval: 5000,
+    autoCommitThreshold: 1000,
+    eachBatch: handler(producer),
   });
 });
 
