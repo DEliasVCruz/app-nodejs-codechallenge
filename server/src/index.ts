@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { fastify, type FastifyPluginCallback } from "fastify";
 import { pgDatabasePlugin } from "@db/plugin";
+import { kafkaBrokerPlugin } from "@/broker/plugin";
 
 import auth, { type FastifyAuthFunction } from "@fastify/auth";
 import bearerAuthPlugin from "@fastify/bearer-auth";
@@ -26,6 +27,12 @@ const app = fastify({
 });
 
 app.register(pgDatabasePlugin, { databaseUrl: dbURL });
+
+console.log("About to start plugin");
+app.register(kafkaBrokerPlugin, {
+  clientId: "api-server",
+  brokers: ["localhost:9092"],
+});
 
 // Add schema validator and serializer
 app.setValidatorCompiler(validatorCompiler);

@@ -15,6 +15,7 @@ const getWithUserAccountNumbers = async (
       account_id: accountsTable.id,
       account_number: accountsTable.number,
       account_type: accountsTable.account_type_id,
+      ledger_id: accountsTable.ledger_id,
     })
     .from(accountsTable)
     .where(
