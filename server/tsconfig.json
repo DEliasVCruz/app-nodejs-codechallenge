@@ -19,8 +19,9 @@
     "paths": {
       "@/*": ["./src/*"],
       "@db/*": ["./src/database/*"],
-      "@accounts/*": ["./src/routes/accounts/*"]
-      "@users/*": ["./src/routes/users/*"]
+      "@accounts/*": ["./src/routes/accounts/*"],
+      "@users/*": ["./src/routes/users/*"],
+      "@transactions/*": ["./src/routes/transactions/*"]
     },
     "skipLibCheck": true
   },
