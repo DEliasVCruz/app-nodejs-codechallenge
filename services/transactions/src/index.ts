@@ -12,7 +12,7 @@ const kafka = new Kafka({
 
 const topics = [
   "transfer-request",
-  "transaction-security",
+  "transaction-fraud-validation",
   "account-creation-request",
 ];
 const consumers: Array<Consumer> = [];
