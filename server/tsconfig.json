@@ -17,8 +17,10 @@
     "noUncheckedIndexedAccess": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
-      "@db/*": ["./src/database/*"]
+      "@/*": ["./src/*"],
+      "@db/*": ["./src/database/*"],
+      "@accounts/*": ["./src/routes/accounts/*"]
+      "@users/*": ["./src/routes/users/*"]
     },
     "skipLibCheck": true
   },
