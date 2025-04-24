@@ -111,6 +111,11 @@ topics.forEach(async (topic) => {
 app.listen({ port: 3000 }, (err, addr) => {
   if (err) {
     app.log.error(err);
+
+    consumers.forEach((consumer) => {
+      consumer.disconnect();
+    });
+
     process.exit(1);
   }
 

@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { Kafka } from "kafkajs";
+import { Kafka, type Consumer } from "kafkajs";
 
 import { fastify } from "fastify";
 // import { transferRequestMessage } from "./schemas";
@@ -10,20 +10,24 @@ const kafka = new Kafka({
   brokers: ["localhost:9092"],
 });
 
-const consumer = kafka.consumer({ groupId: "api-consumer" });
-
-const consumer_topics = [
+const topics = [
   "transfer-request",
   "transaction-security",
   "account-creation-request",
 ];
+const consumers: Array<Consumer> = [];
 
-await consumer.connect();
-await consumer.subscribe({
-  topics: consumer_topics,
-});
+topics.forEach(async (topic) => {
+  const consumer = kafka.consumer({
+    groupId: `transactions-consumer-${topic}`,
+  });
+  consumers.push(consumer);
 
-consumer_topics.forEach(async () => {
+  await consumer.connect();
+  await consumer.subscribe({
+    topics: [topic],
+  });
+
   await consumer.run({
     eachMessage: async ({ topic, message }) => {
       console.log("The topic", topic);
@@ -46,7 +50,9 @@ app.listen({ port: 3008 }, (err, addr) => {
   if (err) {
     app.log.error(err);
 
-    consumer.disconnect();
+    consumers.forEach((consumer) => {
+      consumer.disconnect();
+    });
 
     process.exit(1);
   }
