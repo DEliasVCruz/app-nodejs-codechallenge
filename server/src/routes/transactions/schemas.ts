@@ -1,31 +1,23 @@
 import { z } from "zod";
 
-const MAX_ACCOUN_NAMET_LENGTH = 120;
+const TRANSACTION_STATUS = [
+  "requested",
+  "pending",
+  "approved",
+  "rejected",
+] as const;
 
-const USER_ACCOUNT_STATUS = ["pending", "enabled"] as const;
-
-export const createAccountRequest = z.object({
-  name: z
-    .string({
-      required_error: "Name is required",
-      invalid_type_error: "Name must be a string",
-    })
-    .trim()
-    .nonempty()
-    .max(MAX_ACCOUN_NAMET_LENGTH, {
-      message: `Account name can't be over ${MAX_ACCOUN_NAMET_LENGTH} characters`,
-    }),
-  type: z.enum(["savings", "personal_credit", "credit_line"], {
-    required_error: "Account type is required",
-  }),
-  currency: z.enum(["usd", "pen"], {
-    required_error: "Currency type is required",
-  }),
+export const createTransactionRequest = z.object({
+  id: z.coerce.bigint().positive(),
+  debit_account_number: z.coerce.bigint().positive(),
+  credit_account_number: z.coerce.bigint().positive(),
+  value: z.coerce.bigint().positive(),
+  operation_id: z.coerce.number().positive(),
 });
 
-export const userAccountCreationSuccess = z.object({
+export type TransactionRequest = z.infer<typeof createTransactionRequest>;
+
+export const transactionCreationAccepted = z.object({
   message: z.string(),
-  status: z.enum(USER_ACCOUNT_STATUS),
+  status: z.enum(TRANSACTION_STATUS),
 });
-
-// export const getAccountRequest;

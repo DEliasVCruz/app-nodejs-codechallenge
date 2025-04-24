@@ -3,7 +3,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 
 import {
   createAccountRequest,
-  userAccountCreationSuccess,
+  userAccountCreationAccepted,
   userAccountCreationFailed,
 } from "@accounts/schemas";
 import { createUserAccount } from "@accounts/functions/create_account";
@@ -19,17 +19,12 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
       schema: {
         body: createAccountRequest,
         response: {
-          201: userAccountCreationSuccess,
+          201: userAccountCreationAccepted,
           500: userAccountCreationFailed,
         },
       },
     },
     async (req, res) => {
-      // We generate an account id an number
-      // We create the accoutn in the database
-      // We send the account account created to the -user-account topic
-      // We add the account to the cache (we dont' fail if this errors out)
-
       const user = req.getDecorator<UserModel>("user");
 
       const account = await createUserAccount(app.pgdb, {
@@ -43,6 +38,8 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
 
         return { message: "failed to create account" };
       }
+
+      // send to kafka
 
       res.code(201);
 

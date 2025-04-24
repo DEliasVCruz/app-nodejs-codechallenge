@@ -1,32 +1,52 @@
 import type { FastifyInstance, RouteOptions } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import type { UserModel } from "@users/schemas";
+
+import { z } from "zod";
+
+import { userAccuntIDParam } from "@accounts/schemas";
+
+import { getTransactionAccount } from "@transactions/functions/create_transaction";
 
 import {
-  createAccountRequest,
-  userAccountCreationSuccess,
+  createTransactionRequest,
+  transactionCreationAccepted,
 } from "@transactions/schemas";
 
 const create_transaction = async (app: FastifyInstance, _: RouteOptions) => {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
   route.post(
-    "/",
+    "/:account_id/request",
     {
       schema: {
-        body: createAccountRequest,
-        response: { 200: userAccountCreationSuccess },
+        body: createTransactionRequest,
+        params: userAccuntIDParam,
+        response: { 201: transactionCreationAccepted, 400: z.undefined() },
       },
     },
     async (req, res) => {
-      // We generate an account id an number
-      // We create the accoutn in the database
-      // We send the account account created to the -user-account topic
-      // We add the account to the cache (we dont' fail if this errors out)
+      const user = req.getDecorator<UserModel>("user");
 
-      res.code(200);
+      const account = await getTransactionAccount(app.pgdb, {
+        user,
+        id: req.params.account_id,
+        debit_account_number: req.body.debit_account_number,
+        credit_account_number: req.body.credit_account_number,
+      });
+
+      if (account == undefined) {
+        res.code(400);
+
+        return;
+      }
+
+      // send to kafka
+
+      res.code(201);
       res.send({
-        message: `user account created with name ${req.body.name}`,
-        status: "pending",
+        message: "transaction request accepted",
+        status: "requested",
       });
     },
   );

@@ -18,6 +18,10 @@ export const getAccountTypeIdByName = (type: UserAccountType) => {
   return USER_ACCOUNT_TYPES.indexOf(type) + 1;
 };
 
+export const getAccountTyepById = (type: number) => {
+  return USER_ACCOUNT_TYPES[type - 1];
+};
+
 export const getAccountLedgerByCurrencyName = (type: UserAccountCurrency) => {
   return 1000 + ACCOUNT_CURRENCY_TYPES.indexOf(type) + 1;
 };
@@ -48,6 +52,10 @@ export const userAccountCreationAccepted = z.object({
 
 export const userAccountCreationFailed = z.object({
   message: z.string(),
+});
+
+export const userAccuntIDParam = z.object({
+  account_id: z.string().max(MAX_ACCOUNT_NUMER_LENGTH),
 });
 
 export const userAccountResponseModel = z.object({
