@@ -4,6 +4,8 @@ import { fastify, type FastifyPluginCallback } from "fastify";
 import { pgDatabasePlugin } from "@db/plugin";
 import { kafkaBrokerPlugin } from "@/broker/plugin";
 
+import { Kafka, type Consumer } from "kafkajs";
+
 import auth, { type FastifyAuthFunction } from "@fastify/auth";
 import bearerAuthPlugin from "@fastify/bearer-auth";
 
@@ -27,8 +29,6 @@ const app = fastify({
 });
 
 app.register(pgDatabasePlugin, { databaseUrl: dbURL });
-
-console.log("About to start plugin");
 app.register(kafkaBrokerPlugin, {
   clientId: "api-server",
   brokers: ["localhost:9092"],
@@ -79,6 +79,33 @@ const routes = [
 
 routes.forEach((route) => {
   app.register(route, { prefix: "/api" });
+});
+
+const kafka = new Kafka({
+  clientId: "api-server",
+  brokers: ["localhost:9092"],
+});
+
+const topics = ["account-created", "transaction-created", "transaction-update"];
+const consumers: Array<Consumer> = [];
+
+topics.forEach(async (topic) => {
+  const consumer = kafka.consumer({ groupId: `api-consumer-${topic}` });
+  consumers.push(consumer);
+
+  await consumer.connect();
+  await consumer.subscribe({
+    topics: [topic],
+  });
+
+  await consumer.run({
+    eachMessage: async ({ topic, message }) => {
+      console.log("The topic", topic);
+      if (message.value != null) {
+        console.log("The message", message.value.toString());
+      }
+    },
+  });
 });
 
 app.listen({ port: 3000 }, (err, addr) => {

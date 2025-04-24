@@ -15,27 +15,6 @@ export const kafkaBrokerPlugin = fp(
       brokers: options.brokers,
     });
 
-    console.log("We made it");
-
     app.decorate("kafka", kafka);
-
-    console.log("About to connect to kafka");
-    const consumer = kafka.consumer({ groupId: "api-consumer" });
-
-    await consumer.connect();
-    await consumer.subscribe({
-      topics: ["account-created", "transfer-request"],
-    });
-
-    await consumer.run({
-      eachMessage: async ({ topic, message }) => {
-        console.log("The topic", topic);
-        if (message.value != null) {
-          console.log("The message", message.value.toString());
-        }
-      },
-    });
-
-    console.log("Have finished connections");
   },
 );
