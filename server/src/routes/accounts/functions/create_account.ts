@@ -10,7 +10,7 @@ import {
   UserAccountCurrency,
   getAccountLedgerByCurrencyName,
   getAccountTypeIdByName,
-} from "./schemas";
+} from "@accounts/schemas";
 
 type CreateUserAccount = {
   user_id: string;
