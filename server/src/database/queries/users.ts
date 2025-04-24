@@ -6,16 +6,20 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 export type NewAccount = typeof accountsTable.$inferInsert;
 
 const insert = async (db: NodePgDatabase, account: NewAccount) => {
-  const result = await db
-    .insert(accountsTable)
-    .values(account)
-    .returning({ number: accountsTable.number });
+  return new Promise<{ number: bigint; id: string }>((res, rej) => {
+    db.insert(accountsTable)
+      .values(account)
+      .returning({ number: accountsTable.number, id: accountsTable.id })
+      .then((result) => {
+        const account = result[0];
 
-  if (!result) {
-    throw new Error("create account record failed");
-  }
+        if (!account) {
+          return rej("create account record failed");
+        }
 
-  return result[0];
+        return res(account);
+      });
+  });
 };
 
 export type UpdateAccount = {

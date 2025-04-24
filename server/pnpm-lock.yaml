@@ -14,9 +14,6 @@ importers:
       '@fastify/bearer-auth':
         specifier: ^10.1.1
         version: 10.1.1
-      '@types/node':
-        specifier: ^22.10.7
-        version: 22.14.1
       dotenv:
         specifier: ^16.4.7
         version: 16.5.0
@@ -29,6 +26,9 @@ importers:
       fastify-type-provider-zod:
         specifier: ^4.0.2
         version: 4.0.2(fastify@5.3.2)(zod@3.24.3)
+      nanoid:
+        specifier: ^5.1.5
+        version: 5.1.5
       pg:
         specifier: ^8.15.5
         version: 8.15.5
@@ -38,7 +38,13 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.8.3
+      zod:
+        specifier: ^3.24.3
+        version: 3.24.3
     devDependencies:
+      '@types/node':
+        specifier: ^22.10.7
+        version: 22.14.1
       '@types/pg':
         specifier: ^8.11.14
         version: 8.11.14
@@ -636,6 +642,11 @@ packages:
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+
+  nanoid@5.1.5:
+    resolution: {integrity: sha512-Ir/+ZpE9fDsNH0hQ3C68uyThDXzYcim2EqcZ8zn8Chtt1iylPT9xXJB0kPCnqzgcEGikO9RxSrh63MsmVCU7Fw==}
+    engines: {node: ^18 || >=20}
+    hasBin: true
 
   obuf@1.1.2:
     resolution: {integrity: sha512-PX1wu0AmAdPqOL1mWhqmlOd8kOIZQwGZw6rh7uby9fTc5lhaOWFLX3I6R1hrF9k3zUY40e6igsLGkDXK92LJNg==}
@@ -1266,6 +1277,8 @@ snapshots:
   make-error@1.3.6: {}
 
   ms@2.1.3: {}
+
+  nanoid@5.1.5: {}
 
   obuf@1.1.2: {}
 
