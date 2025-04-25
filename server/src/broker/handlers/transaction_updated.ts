@@ -2,7 +2,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { z } from "zod";
 
-import { accountsTable } from "@db/schemas/accounts";
+import type { TransactionStatus } from "@transactions/schemas";
 
 import type { EachBatchHandler } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
@@ -11,6 +11,8 @@ import {
   transactionUpdatedMessage,
   type TransactionUpdateMessage,
 } from "@bk/schemas";
+
+import { transactions } from "@db/queries/transactions";
 
 type MessageParsedPayload = {
   offset: string;
@@ -49,19 +51,46 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
         return message.value.success;
       });
 
+    if (!messages.length) {
+      await heartbeat();
+
+      return;
+    }
+
     const processedOffsets: Array<string> = [];
+    const requests: Record<TransactionStatus, Array<string>> = {
+      rejected: [],
+      approved: [],
+      pending: [],
+      requested: [],
+    };
 
     messages.forEach((message) => {
       if (!isRunning() || isStale()) return;
 
       const payload = message as MessageParsedPayload;
-      // Send to tiger beatle for processing
 
-      const query = db.select().from(accountsTable).toSQL();
-      console.log("The query for update", query);
-
+      requests[payload.value.data.status].push(
+        payload.value.data.transaction_id,
+      );
       processedOffsets.push(payload.offset);
     });
+
+    for (const [status, account_ids] of Object.entries(requests)) {
+      if (account_ids.length === 0) {
+        continue;
+      }
+
+      const results = await transactions.updateStatusBatch(
+        db,
+        account_ids,
+        status as TransactionStatus,
+      );
+
+      console.log(
+        `[info/transactions-updated/consumer] update count: ${results.length}`,
+      );
+    }
 
     processedOffsets.forEach((offset) => {
       resolveOffset(offset);

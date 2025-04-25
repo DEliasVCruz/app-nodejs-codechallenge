@@ -43,6 +43,7 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
       const producer = app.kafka.producer();
 
       const request = {
+        account_id: account.account_id,
         number: account.account_number.toString(),
         ledger: account.ledger_id,
         operation: getOperationByAccountTypeId(account.account_type_id),

@@ -48,6 +48,12 @@ export const handler: (producer: Producer) => EachBatchHandler = (
         return message.value.success;
       });
 
+    if (!messages.length) {
+      await heartbeat();
+
+      return;
+    }
+
     const responses: Array<Message> = [];
     const processedOffsets: Array<string> = [];
 

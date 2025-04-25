@@ -46,6 +46,12 @@ export const handler: (producer: Producer) => EachBatchHandler = (
         return message.value.success;
       });
 
+    if (!messages.length) {
+      await heartbeat();
+
+      return;
+    }
+
     const responses: Array<Message> = [];
     const processedOffsets: Array<string> = [];
 
@@ -55,7 +61,7 @@ export const handler: (producer: Producer) => EachBatchHandler = (
       const payload = message as MessageParsedPayload;
 
       const scale = BigInt(payload.value.data.scale);
-      const value = payload.value.data.amount * (1n / (10n ^ scale));
+      const value = payload.value.data.amount;
 
       const response: FraudTransactionVeridictMessage = {
         number: payload.value.data.number.toString(),
@@ -65,7 +71,7 @@ export const handler: (producer: Producer) => EachBatchHandler = (
         credit_account_id: payload.value.data.credit_account_id.toString(),
         code: 401,
         ledger: payload.value.data.ledger,
-        status: value > 1000n ? "rejected" : "approved",
+        status: value > 1000n * (10n ^ scale) ? "approved" : "rejected",
       };
 
       responses.push({ value: JSON.stringify(response) });

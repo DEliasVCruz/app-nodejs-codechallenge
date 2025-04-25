@@ -4,12 +4,28 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import type { TransactionStatus } from "@transactions/schemas";
 
+import { DateTime } from "luxon";
+
 export type NewTransaction = typeof transactionsTable.$inferInsert;
 
 const insertBatch = async (
   db: NodePgDatabase,
   transaction: NewTransaction[],
 ) => {
+  console.log(
+    "The insert query",
+    db
+      .insert(transactionsTable)
+      .values(transaction)
+      .returning({
+        id: transactionsTable.id,
+        debit_account_id: transactionsTable.debit_account_number,
+        credit_account_id: transactionsTable.credit_account_number,
+        creation_date: transactionsTable.creation_date,
+        status: transactionsTable.status,
+      })
+      .toSQL(),
+  );
   const result = await db
     .insert(transactionsTable)
     .values(transaction)
@@ -31,11 +47,11 @@ const insertBatch = async (
 const updateStatusBatch = async (
   db: NodePgDatabase,
   id: Array<string>,
-  req: { status: TransactionStatus; update_date: string },
+  status: TransactionStatus,
 ) => {
   const result = await db
     .update(transactionsTable)
-    .set({ status: req.status, update_date: new Date(req.update_date) })
+    .set({ status, update_date: new Date(DateTime.utc().toISO()) })
     .where(inArray(transactionsTable.id, id))
     .returning({
       id: transactionsTable.id,

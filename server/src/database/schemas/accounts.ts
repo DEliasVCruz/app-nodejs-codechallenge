@@ -22,7 +22,6 @@ export const accountsTable = pgTable("accounts", {
     .notNull(),
   number: varchar({ length: 120 }).unique().notNull(),
   user_id: char({ length: 12 })
-    .unique()
     .notNull()
     .references(() => usersTable.id),
   balance: decimal<"number">({ precision: 11, scale: 2 })
@@ -30,12 +29,10 @@ export const accountsTable = pgTable("accounts", {
     .default(0.0),
   name: varchar({ length: MAX_ACCOUNT_NAME_LENGTH }).notNull(),
   ledger_id: integer()
-    .unique()
     .notNull()
     .references(() => ledgersTable.id),
   account_type_id: smallint()
     .notNull()
-    .unique()
     .references(() => acountTypesTable.id),
   max_balance: decimal<"number">({ precision: 11, scale: 2 }),
   creation_date: timestamp("created_at", { withTimezone: true })
@@ -49,21 +46,18 @@ export const transactionsTable = pgTable("transactions", {
   id: char({ length: 29 }).unique().primaryKey().notNull(),
   number: varchar({ length: 120 }).unique().notNull(),
   debit_account_number: varchar({ length: 120 })
-    .unique()
     .notNull()
     .references(() => accountsTable.number),
   credit_account_number: varchar({ length: 120 })
-    .unique()
     .notNull()
     .references(() => accountsTable.number),
-  value: decimal<"number">({ precision: 11, scale: 2 }).notNull(),
+  value: varchar().notNull(),
   creation_date: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
   update_date: timestamp("updated_at", { withTimezone: true }),
   status: varchar({ length: 100 }).notNull().default("pending"),
   operation_id: integer()
-    .unique()
     .notNull()
     .references(() => operationsTable.id),
 });

@@ -50,6 +50,12 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
         return message.value.success;
       });
 
+    if (!messages.length) {
+      await heartbeat();
+
+      return;
+    }
+
     const processedOffsets: Array<string> = [];
     const requests: Record<AccountStatus, Array<string>> = {
       created: [],
@@ -70,10 +76,14 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
         continue;
       }
 
-      await accounts.updateStatusBatch(
+      const results = await accounts.updateStatusBatch(
         db,
         account_ids,
         status as AccountStatus,
+      );
+
+      console.log(
+        `[info/account-created/consumer] update count: ${results.length}`,
       );
     }
 

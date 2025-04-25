@@ -51,6 +51,12 @@ export const handler: (producer: Producer) => EachBatchHandler = (
     const responses: Array<Message> = [];
     const processedOffsets: Array<string> = [];
 
+    if (!messages.length) {
+      await heartbeat();
+
+      return;
+    }
+
     messages.forEach(async (message) => {
       if (!isRunning() || isStale()) return;
 

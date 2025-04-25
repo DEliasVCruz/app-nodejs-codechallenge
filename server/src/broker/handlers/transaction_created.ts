@@ -2,13 +2,13 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { z } from "zod";
 
-import { accountsTable } from "@db/schemas/accounts";
+import { transactions, type NewTransaction } from "@db/queries/transactions";
 
 import type { EachBatchHandler } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
   parseJsonPreprocessor,
-  transferRequestMessage,
+  transactionCreatedMessage,
   type TransactionCreatedMessage,
 } from "@bk/schemas";
 
@@ -31,7 +31,7 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
       .map((messgae) => {
         const schemaChecker = z.preprocess(
           parseJsonPreprocessor,
-          transferRequestMessage,
+          transactionCreatedMessage,
         );
 
         const parsedValue = schemaChecker.safeParse(messgae.value?.toString());
@@ -49,19 +49,43 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
         return message.value.success;
       });
 
-    const processedOffsets: Array<string> = [];
+    if (!messages.length) {
+      await heartbeat();
 
+      return;
+    }
+
+    const processedOffsets: Array<string> = [];
+    const requests: Array<NewTransaction> = [];
+
+    console.log(
+      `[info/transactions-created/consumer] transaction creation recieved`,
+      messages,
+    );
     messages.forEach((message) => {
       if (!isRunning() || isStale()) return;
 
       const payload = message as MessageParsedPayload;
       // Create transaction record in database
 
-      const query = db.select().from(accountsTable).toSQL();
-      console.log("The query for create", query);
-
+      console.log("The date", payload.value.data.creation_date);
+      requests.push({
+        id: payload.value.data.transaction_id,
+        credit_account_number: payload.value.data.credit_account_id.toString(),
+        debit_account_number: payload.value.data.debit_account_id.toString(),
+        number: payload.value.data.number.toString(),
+        operation_id: payload.value.data.code,
+        value: payload.value.data.amount.toString(),
+        creation_date: new Date(payload.value.data.creation_date),
+        status: payload.value.data.status,
+      });
       processedOffsets.push(payload.offset);
     });
+
+    const results = await transactions.insertBatch(db, requests);
+    console.log(
+      `[info/transactions-created/consumer] update count: ${results.length}`,
+    );
 
     processedOffsets.forEach((offset) => {
       resolveOffset(offset);
