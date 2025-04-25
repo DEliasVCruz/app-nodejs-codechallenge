@@ -58,25 +58,22 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
     }
 
     const processedOffsets: Array<string> = [];
-    const requests: Record<TransactionStatus, Array<string>> = {
-      rejected: [],
-      approved: [],
-      pending: [],
-      requested: [],
-    };
+    const requests: Map<TransactionStatus, Array<string>> = new Map();
 
     messages.forEach((message) => {
       if (!isRunning() || isStale()) return;
 
       const payload = message as MessageParsedPayload;
 
-      requests[payload.value.data.status].push(
-        payload.value.data.transaction_id,
-      );
+      const records = requests.get(payload.value.data.status) ?? [];
+      records.push(payload.value.data.transaction_id);
+
+      requests.set(payload.value.data.status, records);
+
       processedOffsets.push(payload.offset);
     });
 
-    for (const [status, account_ids] of Object.entries(requests)) {
+    for (const [status, account_ids] of requests.entries()) {
       if (account_ids.length === 0) {
         continue;
       }

@@ -19,7 +19,7 @@ RUN pnpm run type-check
 
 # Set environment variables
 ENV PORT=3001
-ENV KAFKA_BROKERS=kafka:9092
+ENV KAFKA_BROKERS=kafka:29092
 
 # Expose the port the app runs on
 EXPOSE ${PORT}

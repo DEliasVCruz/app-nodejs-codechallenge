@@ -32,6 +32,8 @@ const app = fastify({
   logger: true,
 });
 
+console.log("The value of kafka brokers", process.env.KAFKA_BROKERS);
+
 app.register(pgDatabasePlugin, { databaseUrl: dbURL });
 app.register(kafkaBrokerPlugin, {
   clientId: "api-server",
@@ -87,7 +89,7 @@ routes.forEach((route) => {
 
 const kafka = new Kafka({
   clientId: "api-server",
-  brokers: ["localhost:9092"],
+  brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
 });
 
 const consumers: Array<Consumer> = [];
