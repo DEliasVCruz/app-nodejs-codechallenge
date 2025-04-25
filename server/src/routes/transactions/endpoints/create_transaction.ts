@@ -11,6 +11,7 @@ import { getTransactionAccount } from "@transactions/functions/create_transactio
 import {
   createTransactionRequest,
   transactionCreationAccepted,
+  transactionRequestFailed,
 } from "@transactions/schemas";
 
 const create_transaction = async (app: FastifyInstance, _: RouteOptions) => {
@@ -22,7 +23,11 @@ const create_transaction = async (app: FastifyInstance, _: RouteOptions) => {
       schema: {
         body: createTransactionRequest,
         params: userAccuntIDParam,
-        response: { 201: transactionCreationAccepted, 400: z.undefined() },
+        response: {
+          201: transactionCreationAccepted,
+          400: z.undefined(),
+          500: transactionRequestFailed,
+        },
       },
     },
     async (req, res) => {
@@ -52,13 +57,22 @@ const create_transaction = async (app: FastifyInstance, _: RouteOptions) => {
         ledger: account.ledger_id,
       };
 
-      await producer.connect();
-      await producer.send({
-        topic: "transfer-request",
-        messages: [{ value: JSON.stringify(message) }],
-      });
+      try {
+        await producer.connect();
+        await producer.send({
+          topic: "transfer-request",
+          messages: [{ value: JSON.stringify(message) }],
+        });
 
-      await producer.disconnect();
+        await producer.disconnect();
+      } catch {
+        res.code(500);
+        res.send({
+          message: "transaction request failed",
+        });
+
+        return;
+      }
 
       res.code(201);
       res.send({

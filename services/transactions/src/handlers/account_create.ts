@@ -1,24 +1,23 @@
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { DateTime } from "luxon";
 
 import { z } from "zod";
 
-import { accountsTable } from "@db/schemas/accounts";
-
-import type { EachBatchHandler } from "kafkajs";
+import type { EachBatchHandler, Producer, Message } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
   parseJsonPreprocessor,
-  transactionUpdatedMessage,
-  type TransactionUpdateMessage,
-} from "@bk/schemas";
+  accountCreateMessage,
+  type AccountCreateRequest,
+  type AccountCreatedMessage,
+} from "@/schemas";
 
 type MessageParsedPayload = {
   offset: string;
-  value: SafeParseSuccess<TransactionUpdateMessage>;
+  value: SafeParseSuccess<AccountCreateRequest>;
 };
 
-export const handler: (db: NodePgDatabase) => EachBatchHandler = (
-  db: NodePgDatabase,
+export const handler: (producer: Producer) => EachBatchHandler = (
+  producer: Producer,
 ) => {
   const batchTransferUpdateHandler: EachBatchHandler = async ({
     batch,
@@ -31,7 +30,7 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
       .map((messgae) => {
         const schemaChecker = z.preprocess(
           parseJsonPreprocessor,
-          transactionUpdatedMessage,
+          accountCreateMessage,
         );
 
         const parsedValue = schemaChecker.safeParse(messgae.value?.toString());
@@ -49,19 +48,33 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
         return message.value.success;
       });
 
+    const responses: Array<Message> = [];
     const processedOffsets: Array<string> = [];
 
-    messages.forEach((message) => {
+    messages.forEach(async (message) => {
       if (!isRunning() || isStale()) return;
 
       const payload = message as MessageParsedPayload;
       // Send to tiger beatle for processing
 
-      const query = db.select().from(accountsTable).toSQL();
-      console.log("The query for update", query);
+      const response: AccountCreatedMessage = {
+        account_id: payload.value.data.account_id,
+        update_date: DateTime.utc().toISO(),
+        status: "created",
+      };
 
+      responses.push({ value: JSON.stringify(response) });
       processedOffsets.push(payload.offset);
     });
+
+    await producer
+      .send({
+        topic: "account-created",
+        messages: responses,
+      })
+      .catch((e) =>
+        console.error(`[error/account-create/consumer] ${e.message}`, e),
+      );
 
     processedOffsets.forEach((offset) => {
       resolveOffset(offset);

@@ -5,6 +5,7 @@ import {
   createAccountRequest,
   userAccountCreationAccepted,
   userAccountCreationFailed,
+  getOperationByAccountTypeId,
 } from "@accounts/schemas";
 import { createUserAccount } from "@accounts/functions/create_account";
 
@@ -39,7 +40,27 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
         return { message: "failed to create account" };
       }
 
-      // send to kafka
+      const producer = app.kafka.producer();
+
+      const request = {
+        number: account.account_number.toString(),
+        ledger: account.ledger_id,
+        operation: getOperationByAccountTypeId(account.account_type_id),
+      };
+
+      try {
+        await producer.connect();
+        await producer.send({
+          topic: "account-create",
+          messages: [{ value: JSON.stringify(request) }],
+        });
+
+        await producer.disconnect();
+      } catch {
+        res.code(500);
+
+        return { message: "failed to create account" };
+      }
 
       res.code(201);
 

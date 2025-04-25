@@ -6,10 +6,20 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 export type NewAccount = typeof accountsTable.$inferInsert;
 
 const insert = async (db: NodePgDatabase, account: NewAccount) => {
-  return new Promise<{ number: bigint; id: string }>((res, rej) => {
+  return new Promise<{
+    number: bigint;
+    id: string;
+    ledger_id: number;
+    account_type_id: number;
+  }>((res, rej) => {
     db.insert(accountsTable)
       .values(account)
-      .returning({ number: accountsTable.number, id: accountsTable.id })
+      .returning({
+        number: accountsTable.number,
+        id: accountsTable.id,
+        ledger_id: accountsTable.ledger_id,
+        account_type_id: accountsTable.account_type_id,
+      })
       .then((result) => {
         const value = result[0];
 
@@ -20,6 +30,8 @@ const insert = async (db: NodePgDatabase, account: NewAccount) => {
         const account = {
           number: BigInt(value.number),
           id: value.id,
+          ledger_id: value.ledger_id,
+          account_type_id: value.account_type_id,
         };
 
         return res(account);

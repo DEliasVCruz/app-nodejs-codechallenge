@@ -2,6 +2,8 @@ import { inArray } from "drizzle-orm";
 import { transactionsTable } from "../schemas/accounts";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
+import type { TransactionStatus } from "@transactions/schemas";
+
 export type NewTransaction = typeof transactionsTable.$inferInsert;
 
 const insertBatch = async (
@@ -29,11 +31,11 @@ const insertBatch = async (
 const updateStatusBatch = async (
   db: NodePgDatabase,
   id: Array<string>,
-  status: string,
+  req: { status: TransactionStatus; update_date: string },
 ) => {
   const result = await db
     .update(transactionsTable)
-    .set({ status })
+    .set({ status: req.status, update_date: new Date(req.update_date) })
     .where(inArray(transactionsTable.id, id))
     .returning({
       id: transactionsTable.id,
@@ -44,7 +46,7 @@ const updateStatusBatch = async (
     });
 
   if (!result) {
-    throw new Error("update accounts status failed");
+    throw new Error("update transactions status failed");
   }
 
   return result;

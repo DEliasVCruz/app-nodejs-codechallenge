@@ -5,17 +5,42 @@ import { z, ZodIssueCode } from "zod";
 
 import { handler as transactionCreatedHandler } from "@bk/handlers/transaction_created";
 import { handler as transactionUpdateHandler } from "@bk/handlers/transaction_updated";
+import { handler as accountCreatedHandler } from "@bk/handlers/account_created";
 
-const TRANSACTION_STATUS = ["approved", "rejected", "pending"] as const;
-export type TransactionStatus = (typeof TRANSACTION_STATUS)[number];
+import { TRANSACTION_STATUS } from "@transactions/schemas";
+
+import { ACCOUNT_STATUS } from "@accounts/schemas";
 
 export const CONSUMER_TOPICS = [
-  // "account-created",
+  "account-created",
   "transaction-created",
   "transaction-update",
 ] as const;
 
 export type ConsumerTopics = (typeof CONSUMER_TOPICS)[number];
+
+export const parseJsonPreprocessor = (value: any, ctx: z.RefinementCtx) => {
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      ctx.addIssue({
+        code: ZodIssueCode.custom,
+        message: (e as Error).message,
+      });
+    }
+  }
+
+  return value;
+};
+
+export const accountCreatedMessage = z.object({
+  account_id: z.string(),
+  update_date: z.string(),
+  status: z.enum(ACCOUNT_STATUS),
+});
+
+export type AccountCreatedMessage = z.infer<typeof accountCreatedMessage>;
 
 export const transferRequestMessage = z.object({
   number: z.coerce.bigint().positive(),
@@ -40,21 +65,6 @@ export type TransactionCreatedMessage = z.infer<
   typeof transactionCreatedMessage
 >;
 
-export const parseJsonPreprocessor = (value: any, ctx: z.RefinementCtx) => {
-  if (typeof value === "string") {
-    try {
-      return JSON.parse(value);
-    } catch (e) {
-      ctx.addIssue({
-        code: ZodIssueCode.custom,
-        message: (e as Error).message,
-      });
-    }
-  }
-
-  return value;
-};
-
 export const transactionUpdatedMessage = z
   .object({
     update_date: z.string(),
@@ -77,6 +87,7 @@ const TOPIC_CONSUMER_HANDLER_MAP: Record<
 > = {
   "transaction-created": transactionCreatedHandler,
   "transaction-update": transactionUpdateHandler,
+  "account-created": accountCreatedHandler,
 };
 
 export const getConsumerHandler = (topic: ConsumerTopics) => {

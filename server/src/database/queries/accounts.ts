@@ -1,7 +1,10 @@
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { accountsTable } from "@db/schemas/accounts";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, or, inArray } from "drizzle-orm";
+
+import type { AccountStatus } from "@accounts/schemas";
+import { DateTime } from "luxon";
 
 const getWithUserAccountNumbers = async (
   db: NodePgDatabase,
@@ -37,6 +40,27 @@ const getWithUserAccountNumbers = async (
   return account;
 };
 
+const updateStatusBatch = async (
+  db: NodePgDatabase,
+  id: Array<string>,
+  status: AccountStatus,
+) => {
+  const result = await db
+    .update(accountsTable)
+    .set({ status: status, update_date: new Date(DateTime.utc().toISO()) })
+    .where(inArray(accountsTable.id, id))
+    .returning({
+      account_id: accountsTable.id,
+    });
+
+  if (!result) {
+    throw new Error("update accounts status failed");
+  }
+
+  return result;
+};
+
 export const accounts = {
   getWithUserAccountNumbers,
+  updateStatusBatch,
 };

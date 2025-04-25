@@ -14,12 +14,19 @@ const USER_ACCOUNT_TYPES = [
 export type UserAccountType = (typeof USER_ACCOUNT_TYPES)[number];
 export type UserAccountCurrency = (typeof ACCOUNT_CURRENCY_TYPES)[number];
 
+export const ACCOUNT_STATUS = ["created", "pending"] as const;
+export type AccountStatus = (typeof ACCOUNT_STATUS)[number];
+
 export const getAccountTypeIdByName = (type: UserAccountType) => {
   return USER_ACCOUNT_TYPES.indexOf(type) + 1;
 };
 
 export const getAccountTyepById = (type: number) => {
   return USER_ACCOUNT_TYPES[type - 1];
+};
+
+export const getOperationByAccountTypeId = (typeId: number) => {
+  return 2000 + typeId;
 };
 
 export const getAccountLedgerByCurrencyName = (type: UserAccountCurrency) => {

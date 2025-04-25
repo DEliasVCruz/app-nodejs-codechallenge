@@ -39,6 +39,13 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
         return { offset: messgae.offset, value: parsedValue };
       })
       .filter((message) => {
+        if (!message.value.success) {
+          console.error(
+            `[error/account-create/parse] ${message.value.error.message}`,
+            message.value.error,
+          );
+        }
+
         return message.value.success;
       });
 

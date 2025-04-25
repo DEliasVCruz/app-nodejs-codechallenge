@@ -2,25 +2,26 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { z } from "zod";
 
-import { accountsTable } from "@db/schemas/accounts";
+import type { AccountStatus } from "@accounts/schemas";
+import { accounts } from "@db/queries/accounts";
 
 import type { EachBatchHandler } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
   parseJsonPreprocessor,
-  transactionUpdatedMessage,
-  type TransactionUpdateMessage,
+  accountCreatedMessage,
+  type AccountCreatedMessage,
 } from "@bk/schemas";
 
 type MessageParsedPayload = {
   offset: string;
-  value: SafeParseSuccess<TransactionUpdateMessage>;
+  value: SafeParseSuccess<AccountCreatedMessage>;
 };
 
 export const handler: (db: NodePgDatabase) => EachBatchHandler = (
   db: NodePgDatabase,
 ) => {
-  const batchTransferUpdateHandler: EachBatchHandler = async ({
+  const batchTransferRequestHandler: EachBatchHandler = async ({
     batch,
     resolveOffset,
     heartbeat,
@@ -31,14 +32,14 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
       .map((messgae) => {
         const schemaChecker = z.preprocess(
           parseJsonPreprocessor,
-          transactionUpdatedMessage,
+          accountCreatedMessage,
         );
 
         const parsedValue = schemaChecker.safeParse(messgae.value?.toString());
 
         return { offset: messgae.offset, value: parsedValue };
       })
-      .filter(async (message) => {
+      .filter((message) => {
         if (!message.value.success) {
           console.error(
             `[error/account-create/parse] ${message.value.error.message}`,
@@ -50,18 +51,31 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
       });
 
     const processedOffsets: Array<string> = [];
+    const requests: Record<AccountStatus, Array<string>> = {
+      created: [],
+      pending: [],
+    };
 
     messages.forEach((message) => {
       if (!isRunning() || isStale()) return;
 
       const payload = message as MessageParsedPayload;
-      // Send to tiger beatle for processing
 
-      const query = db.select().from(accountsTable).toSQL();
-      console.log("The query for update", query);
-
+      requests[payload.value.data.status].push(payload.value.data.account_id);
       processedOffsets.push(payload.offset);
     });
+
+    for (const [status, account_ids] of Object.entries(requests)) {
+      if (account_ids.length === 0) {
+        continue;
+      }
+
+      await accounts.updateStatusBatch(
+        db,
+        account_ids,
+        status as AccountStatus,
+      );
+    }
 
     processedOffsets.forEach((offset) => {
       resolveOffset(offset);
@@ -70,5 +84,5 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
     await heartbeat();
   };
 
-  return batchTransferUpdateHandler;
+  return batchTransferRequestHandler;
 };

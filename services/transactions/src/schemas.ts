@@ -4,6 +4,10 @@ import { z, ZodIssueCode } from "zod";
 
 import { handler as transferRequestHandler } from "@/handlers/transfer_request";
 import { handler as transactionFraudValidationHandler } from "@/handlers/transaction_update";
+import { handler as accountCreateHandler } from "@/handlers/account_create";
+
+const ACCOUNT_STATUS = ["created", "pending"] as const;
+export type AccountStatus = (typeof ACCOUNT_STATUS)[number];
 
 const TRANSACTION_STATUS = ["approved", "rejected", "pending"] as const;
 export type TransactionStatus = (typeof TRANSACTION_STATUS)[number];
@@ -11,6 +15,7 @@ export type TransactionStatus = (typeof TRANSACTION_STATUS)[number];
 export const CONSUMER_TOPICS = [
   "transfer-request",
   "transaction-fraud-validation",
+  "account-create",
 ] as const;
 
 export type ConsumerTopics = (typeof CONSUMER_TOPICS)[number];
@@ -29,6 +34,21 @@ export const parseJsonPreprocessor = (value: any, ctx: z.RefinementCtx) => {
 
   return value;
 };
+
+export const accountCreateMessage = z.object({
+  account_id: z.string(),
+  number: z.coerce.bigint().positive(),
+  ledger: z.number().positive(),
+  operation: z.number().positive(),
+});
+
+export type AccountCreatedMessage = {
+  account_id: string;
+  update_date: string;
+  status: AccountStatus;
+};
+
+export type AccountCreateRequest = z.infer<typeof accountCreateMessage>;
 
 export const transferRequestMessage = z.object({
   number: z.coerce.bigint().positive(),
@@ -88,6 +108,7 @@ const TOPIC_CONSUMER_HANDLER_MAP: Record<
 > = {
   "transfer-request": transferRequestHandler,
   "transaction-fraud-validation": transactionFraudValidationHandler,
+  "account-create": accountCreateHandler,
 };
 
 export const getConsumerHandler = (topic: ConsumerTopics) => {

@@ -35,7 +35,12 @@ export const createUserAccount = async (
       account_type_id: getAccountTypeIdByName(req.type),
     })
     .then((account) => {
-      return { account_number: account.number, account_id: account.id };
+      return {
+        account_number: account.number,
+        account_id: account.id,
+        ledger_id: account.ledger_id,
+        account_type_id: account.account_type_id,
+      };
     })
     .catch(() => {
       return undefined;
