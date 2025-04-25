@@ -49,3 +49,5 @@ services:
       - "3002:3002"
     depends_on:
       - kafka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

@@ -14,7 +14,7 @@ const kafka = new Kafka({
 
 const tb = createClient({
   cluster_id: 0n,
-  replica_addresses: [process.env.TB_ADDRESS || "3000"],
+  replica_addresses: [process.env.TB_ADDRESS || "localhost:4000"],
 });
 
 const consumers: Array<Consumer> = [];

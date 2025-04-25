@@ -20,7 +20,7 @@ RUN pnpm run type-check
 # Set environment variables
 ENV PORT=3002
 ENV KAFKA_BROKERS=kafka:29092
-ENV TB_ADDRESS=3000
+ENV TB_ADDRESS=host.docker.internal:4000
 
 # Expose the port the app runs on
 EXPOSE ${PORT}
