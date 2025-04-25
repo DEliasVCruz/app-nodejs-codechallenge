@@ -5,9 +5,16 @@ import { Kafka, type Consumer, type Producer } from "kafkajs";
 import { fastify } from "fastify";
 import { getConsumerHandler, CONSUMER_TOPICS } from "@/schemas";
 
+import { createClient } from "tigerbeetle-node";
+
 const kafka = new Kafka({
   clientId: "transactions-service",
   brokers: ["localhost:9092"],
+});
+
+const tb = createClient({
+  cluster_id: 0n,
+  replica_addresses: [process.env.TB_ADDRESS || "3000"],
 });
 
 const consumers: Array<Consumer> = [];
@@ -33,7 +40,7 @@ CONSUMER_TOPICS.forEach(async (topic) => {
 
   await consumer.run({
     eachBatchAutoResolve: true,
-    eachBatch: handler(producer),
+    eachBatch: handler(producer, tb),
   });
 });
 

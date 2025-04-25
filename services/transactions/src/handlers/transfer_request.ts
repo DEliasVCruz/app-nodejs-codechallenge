@@ -1,5 +1,12 @@
 import { DateTime } from "luxon";
 
+import {
+  type Client,
+  type Transfer,
+  TransferFlags,
+  CreateTransferError,
+} from "tigerbeetle-node";
+
 import { customAlphabet } from "nanoid";
 
 const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz_-";
@@ -21,8 +28,9 @@ type MessageParsedPayload = {
   value: SafeParseSuccess<TransferRequest>;
 };
 
-export const handler: (producer: Producer) => EachBatchHandler = (
+export const handler: (producer: Producer, tb: Client) => EachBatchHandler = (
   producer: Producer,
+  tb: Client,
 ) => {
   const batchTransferRequestHandler: EachBatchHandler = async ({
     batch,
@@ -61,13 +69,30 @@ export const handler: (producer: Producer) => EachBatchHandler = (
 
     const responses: Array<Message> = [];
     const processedOffsets: Array<string> = [];
+    const requests: Array<Transfer> = [];
 
     messages.forEach((message) => {
       if (!isRunning() || isStale()) return;
 
       const payload = message as MessageParsedPayload;
 
-      // Send to tiger beatle for processing
+      const transaction = {
+        id: payload.value.data.number,
+        debit_account_id: payload.value.data.debit_account_id,
+        credit_account_id: payload.value.data.credit_account_id,
+        amount: payload.value.data.amount,
+        pending_id: 0n,
+        user_data_128: 0n,
+        user_data_64: 0n,
+        user_data_32: 0,
+        timeout: 0,
+        ledger: payload.value.data.ledger,
+        code: payload.value.data.code,
+        flags: TransferFlags.pending,
+        timestamp: 0n,
+      };
+
+      requests.push(transaction);
 
       const response: TransferCreatedMessage = {
         transaction_id: nanoid(),
@@ -85,6 +110,21 @@ export const handler: (producer: Producer) => EachBatchHandler = (
       responses.push({ value: JSON.stringify(response) });
       processedOffsets.push(payload.offset);
     });
+
+    const transfer_errors = await tb.createTransfers(requests);
+    for (const error of transfer_errors) {
+      switch (error.result) {
+        case CreateTransferError.exists:
+          console.error(`Batch transfe at ${error.index} already exists.`);
+          break;
+        default:
+          console.error(
+            `Batch account at ${error.index} failed to create: ${
+              CreateTransferError[error.result]
+            }.`,
+          );
+      }
+    }
 
     const topicMessages = [
       {

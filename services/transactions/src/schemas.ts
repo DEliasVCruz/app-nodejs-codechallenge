@@ -2,9 +2,20 @@ import type { EachBatchHandler, Producer } from "kafkajs";
 
 import { z, ZodIssueCode } from "zod";
 
+import { type Client, TransferFlags } from "tigerbeetle-node";
+
 import { handler as transferRequestHandler } from "@/handlers/transfer_request";
 import { handler as transactionFraudValidationHandler } from "@/handlers/transaction_update";
 import { handler as accountCreateHandler } from "@/handlers/account_create";
+
+const TRANSFER_FLAG_BY_TRANSACTION_STATUS: Record<
+  TransactionStatus,
+  TransferFlags
+> = {
+  pending: TransferFlags.pending,
+  approved: TransferFlags.post_pending_transfer,
+  rejected: TransferFlags.void_pending_transfer,
+};
 
 const ACCOUNT_STATUS = ["created", "pending"] as const;
 export type AccountStatus = (typeof ACCOUNT_STATUS)[number];
@@ -104,7 +115,7 @@ export type TransferUpdateMessage =
 
 const TOPIC_CONSUMER_HANDLER_MAP: Record<
   ConsumerTopics,
-  (producer: Producer) => EachBatchHandler
+  (producer: Producer, tb: Client) => EachBatchHandler
 > = {
   "transfer-request": transferRequestHandler,
   "transaction-fraud-validation": transactionFraudValidationHandler,
@@ -113,4 +124,10 @@ const TOPIC_CONSUMER_HANDLER_MAP: Record<
 
 export const getConsumerHandler = (topic: ConsumerTopics) => {
   return TOPIC_CONSUMER_HANDLER_MAP[topic];
+};
+
+export const getTransferFlagByStatus = (
+  status: TransactionStatus,
+): TransferFlags => {
+  return TRANSFER_FLAG_BY_TRANSACTION_STATUS[status];
 };

@@ -2,11 +2,19 @@ import { DateTime } from "luxon";
 
 import { z } from "zod";
 
+import {
+  id,
+  type Client,
+  type Transfer,
+  CreateTransferError,
+} from "tigerbeetle-node";
+
 import type { EachBatchHandler, Producer, Message } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
   parseJsonPreprocessor,
   fraudTransactionVeridictMessage,
+  getTransferFlagByStatus,
   type FraudTransactionVeridictEvent,
   type TransferUpdateMessage,
 } from "@/schemas";
@@ -16,8 +24,9 @@ type MessageParsedPayload = {
   value: SafeParseSuccess<FraudTransactionVeridictEvent>;
 };
 
-export const handler: (producer: Producer) => EachBatchHandler = (
+export const handler: (producer: Producer, tb: Client) => EachBatchHandler = (
   producer: Producer,
+  tb: Client,
 ) => {
   const batchTransferUpdateHandler: EachBatchHandler = async ({
     batch,
@@ -48,21 +57,40 @@ export const handler: (producer: Producer) => EachBatchHandler = (
         return message.value.success;
       });
 
-    const responses: Array<Message> = [];
-    const processedOffsets: Array<string> = [];
-
     if (!messages.length) {
       await heartbeat();
 
       return;
     }
 
+    const responses: Array<Message> = [];
+    const processedOffsets: Array<string> = [];
+    const requests: Array<Transfer> = [];
+
     messages.forEach(async (message) => {
       if (!isRunning() || isStale()) return;
 
       const payload = message as MessageParsedPayload;
-      // Send to tiger beatle for processing
 
+      const flag = getTransferFlagByStatus(payload.value.data.status);
+
+      const transaction = {
+        id: id(),
+        debit_account_id: payload.value.data.debit_account_id,
+        credit_account_id: payload.value.data.credit_account_id,
+        amount: payload.value.data.amount,
+        pending_id: payload.value.data.number,
+        user_data_128: 0n,
+        user_data_64: 0n,
+        user_data_32: 0,
+        timeout: 0,
+        ledger: payload.value.data.ledger,
+        code: payload.value.data.code,
+        flags: flag,
+        timestamp: 0n,
+      };
+
+      requests.push(transaction);
       const response: TransferUpdateMessage = {
         transaction_id: payload.value.data.transaction_id,
         number: payload.value.data.number.toString(),
@@ -76,6 +104,21 @@ export const handler: (producer: Producer) => EachBatchHandler = (
       responses.push({ value: JSON.stringify(response) });
       processedOffsets.push(payload.offset);
     });
+
+    const transfer_errors = await tb.createTransfers(requests);
+    for (const error of transfer_errors) {
+      switch (error.result) {
+        case CreateTransferError.exists:
+          console.error(`Batch transfe at ${error.index} already exists.`);
+          break;
+        default:
+          console.error(
+            `Batch account at ${error.index} failed to create: ${
+              CreateTransferError[error.result]
+            }.`,
+          );
+      }
+    }
 
     await producer
       .send({
