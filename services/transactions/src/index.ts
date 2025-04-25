@@ -33,8 +33,6 @@ CONSUMER_TOPICS.forEach(async (topic) => {
 
   await consumer.run({
     eachBatchAutoResolve: true,
-    autoCommitInterval: 5000,
-    autoCommitThreshold: 1000,
     eachBatch: handler(producer),
   });
 });

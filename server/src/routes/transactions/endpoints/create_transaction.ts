@@ -44,7 +44,7 @@ const create_transaction = async (app: FastifyInstance, _: RouteOptions) => {
       const producer = app.kafka.producer();
 
       const message = {
-        id: req.body.id.toString(),
+        number: req.body.id.toString(),
         debit_account_id: req.body.debit_account_number.toString(),
         credit_account_id: req.body.credit_account_number.toString(),
         amount: req.body.value.toString(),

@@ -1,7 +1,7 @@
 import type { EachBatchHandler } from "kafkajs";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { z } from "zod";
+import { z, ZodIssueCode } from "zod";
 
 import { handler as transactionCreatedHandler } from "@bk/handlers/transaction_created";
 import { handler as transactionUpdateHandler } from "@bk/handlers/transaction_updated";
@@ -40,6 +40,21 @@ export type TransactionCreatedMessage = z.infer<
   typeof transactionCreatedMessage
 >;
 
+export const parseJsonPreprocessor = (value: any, ctx: z.RefinementCtx) => {
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      ctx.addIssue({
+        code: ZodIssueCode.custom,
+        message: (e as Error).message,
+      });
+    }
+  }
+
+  return value;
+};
+
 export const transactionUpdatedMessage = z
   .object({
     update_date: z.string(),
@@ -49,6 +64,7 @@ export const transactionUpdatedMessage = z
     amount: true,
     code: true,
     creation_date: true,
+    ledger: true,
   });
 
 export type TransactionUpdateMessage = z.infer<

@@ -2,9 +2,12 @@ import type { EachBatchHandler, Producer, Message } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
   transactionValidateMessage,
+  parseJsonPreprocessor,
   type TransactionValidateMessage,
   type FraudTransactionVeridictMessage,
 } from "./schemas";
+
+import { z } from "zod";
 
 type MessageParsedPayload = {
   offset: string;
@@ -18,36 +21,34 @@ export const handler: (producer: Producer) => EachBatchHandler = (
     batch,
     resolveOffset,
     heartbeat,
-    commitOffsetsIfNecessary,
     isRunning,
     isStale,
   }) => {
     const messages = batch.messages
-      .map(async (messgae) => {
-        const parsedValue = await transactionValidateMessage.spa(
-          messgae.value?.toString(),
+      .map((messgae) => {
+        const schemaChecker = z.preprocess(
+          parseJsonPreprocessor,
+          transactionValidateMessage,
         );
+
+        const parsedValue = schemaChecker.safeParse(messgae.value?.toString());
 
         return { offset: messgae.offset, value: parsedValue };
       })
       .filter(async (message) => {
-        return await message.then((payload) => {
-          return payload.value.success;
-        });
+        return message.value.success;
       });
 
     const responses: Array<Message> = [];
     const processedOffsets: Array<string> = [];
 
-    messages.forEach(async (message) => {
+    messages.forEach((message) => {
       if (!isRunning() || isStale()) return;
 
-      const payload = (await message.then((content) => {
-        return content;
-      })) as MessageParsedPayload;
+      const payload = message as MessageParsedPayload;
 
       const scale = BigInt(payload.value.data.scale);
-      const value = payload.value.data.amount * ((1n / 10n) ^ scale);
+      const value = payload.value.data.amount * (1n / (10n ^ scale));
 
       const response: FraudTransactionVeridictMessage = {
         number: payload.value.data.number.toString(),
@@ -62,23 +63,22 @@ export const handler: (producer: Producer) => EachBatchHandler = (
 
       responses.push({ value: JSON.stringify(response) });
       processedOffsets.push(payload.offset);
-
-      await commitOffsetsIfNecessary();
-
-      await heartbeat();
     });
 
-    await producer.send({
-      topic: "transaction-fraud-validation",
-      messages: responses,
-    });
+    await producer
+      .send({
+        topic: "transaction-fraud-validation",
+        messages: responses,
+      })
+      .catch((e) =>
+        console.error(`[error/transaction-verify/consumer] ${e.message}`, e),
+      );
 
-    await commitOffsetsIfNecessary();
-
-    processedOffsets.forEach(async (offset) => {
+    processedOffsets.forEach((offset) => {
       resolveOffset(offset);
-      await commitOffsetsIfNecessary();
     });
+
+    await heartbeat();
   };
 
   return batchFraudDetectionHandler;

@@ -1,8 +1,11 @@
 import { DateTime } from "luxon";
 
+import { z } from "zod";
+
 import type { EachBatchHandler, Producer, Message } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
+  parseJsonPreprocessor,
   fraudTransactionVeridictMessage,
   type FraudTransactionVeridictEvent,
   type TransferUpdateMessage,
@@ -20,22 +23,22 @@ export const handler: (producer: Producer) => EachBatchHandler = (
     batch,
     resolveOffset,
     heartbeat,
-    commitOffsetsIfNecessary,
     isRunning,
     isStale,
   }) => {
     const messages = batch.messages
-      .map(async (messgae) => {
-        const parsedValue = await fraudTransactionVeridictMessage.spa(
-          messgae.value?.toString(),
+      .map((messgae) => {
+        const schemaChecker = z.preprocess(
+          parseJsonPreprocessor,
+          fraudTransactionVeridictMessage,
         );
+
+        const parsedValue = schemaChecker.safeParse(messgae.value?.toString());
 
         return { offset: messgae.offset, value: parsedValue };
       })
       .filter(async (message) => {
-        return await message.then((payload) => {
-          return payload.value.success;
-        });
+        return message.value.success;
       });
 
     const responses: Array<Message> = [];
@@ -44,10 +47,7 @@ export const handler: (producer: Producer) => EachBatchHandler = (
     messages.forEach(async (message) => {
       if (!isRunning() || isStale()) return;
 
-      const payload = (await message.then((content) => {
-        return content;
-      })) as MessageParsedPayload;
-
+      const payload = message as MessageParsedPayload;
       // Send to tiger beatle for processing
 
       const response: TransferUpdateMessage = {
@@ -62,23 +62,22 @@ export const handler: (producer: Producer) => EachBatchHandler = (
 
       responses.push({ value: JSON.stringify(response) });
       processedOffsets.push(payload.offset);
-
-      await commitOffsetsIfNecessary();
-
-      await heartbeat();
     });
 
-    await producer.send({
-      topic: "transaction-update",
-      messages: responses,
-    });
+    await producer
+      .send({
+        topic: "transaction-update",
+        messages: responses,
+      })
+      .catch((e) =>
+        console.error(`[error/transaction-update/consumer] ${e.message}`, e),
+      );
 
-    await commitOffsetsIfNecessary();
-
-    processedOffsets.forEach(async (offset) => {
+    processedOffsets.forEach((offset) => {
       resolveOffset(offset);
-      await commitOffsetsIfNecessary();
     });
+
+    await heartbeat();
   };
 
   return batchTransferUpdateHandler;

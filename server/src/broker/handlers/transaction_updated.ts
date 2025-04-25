@@ -1,9 +1,14 @@
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
+import { z } from "zod";
+
+import { accountsTable } from "@db/schemas/accounts";
+
 import type { EachBatchHandler } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
-  transactionCreatedMessage,
+  parseJsonPreprocessor,
+  transactionUpdatedMessage,
   type TransactionUpdateMessage,
 } from "@bk/schemas";
 
@@ -19,48 +24,43 @@ export const handler: (db: NodePgDatabase) => EachBatchHandler = (
     batch,
     resolveOffset,
     heartbeat,
-    commitOffsetsIfNecessary,
     isRunning,
     isStale,
   }) => {
     const messages = batch.messages
-      .map(async (messgae) => {
-        const parsedValue = await transactionCreatedMessage.spa(
-          messgae.value?.toString(),
+      .map((messgae) => {
+        const schemaChecker = z.preprocess(
+          parseJsonPreprocessor,
+          transactionUpdatedMessage,
         );
+
+        const parsedValue = schemaChecker.safeParse(messgae.value?.toString());
 
         return { offset: messgae.offset, value: parsedValue };
       })
       .filter(async (message) => {
-        return await message.then((payload) => {
-          return payload.value.success;
-        });
+        return message.value.success;
       });
 
     const processedOffsets: Array<string> = [];
 
-    messages.forEach(async (message) => {
+    messages.forEach((message) => {
       if (!isRunning() || isStale()) return;
 
-      const payload = (await message.then((content) => {
-        return content;
-      })) as MessageParsedPayload;
-
+      const payload = message as MessageParsedPayload;
       // Send to tiger beatle for processing
 
+      const query = db.select().from(accountsTable).toSQL();
+      console.log("The query for update", query);
+
       processedOffsets.push(payload.offset);
-
-      await commitOffsetsIfNecessary();
-
-      await heartbeat();
     });
 
-    await commitOffsetsIfNecessary();
-
-    processedOffsets.forEach(async (offset) => {
+    processedOffsets.forEach((offset) => {
       resolveOffset(offset);
-      await commitOffsetsIfNecessary();
     });
+
+    await heartbeat();
   };
 
   return batchTransferUpdateHandler;

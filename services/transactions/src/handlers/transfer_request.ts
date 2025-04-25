@@ -5,9 +5,12 @@ import { customAlphabet } from "nanoid";
 const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz_-";
 const nanoid = customAlphabet(alphabet, 29);
 
+import { z } from "zod";
+
 import type { EachBatchHandler, Producer, Message } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
+  parseJsonPreprocessor,
   transferRequestMessage,
   type TransferRequest,
   type TransferCreatedMessage,
@@ -25,33 +28,31 @@ export const handler: (producer: Producer) => EachBatchHandler = (
     batch,
     resolveOffset,
     heartbeat,
-    commitOffsetsIfNecessary,
     isRunning,
     isStale,
   }) => {
     const messages = batch.messages
-      .map(async (messgae) => {
-        const parsedValue = await transferRequestMessage.spa(
-          messgae.value?.toString(),
+      .map((messgae) => {
+        const schemaChecker = z.preprocess(
+          parseJsonPreprocessor,
+          transferRequestMessage,
         );
+
+        const parsedValue = schemaChecker.safeParse(messgae.value?.toString());
 
         return { offset: messgae.offset, value: parsedValue };
       })
-      .filter(async (message) => {
-        return await message.then((payload) => {
-          return payload.value.success;
-        });
+      .filter((message) => {
+        return message.value.success;
       });
 
     const responses: Array<Message> = [];
     const processedOffsets: Array<string> = [];
 
-    messages.forEach(async (message) => {
+    messages.forEach((message) => {
       if (!isRunning() || isStale()) return;
 
-      const payload = (await message.then((content) => {
-        return content;
-      })) as MessageParsedPayload;
+      const payload = message as MessageParsedPayload;
 
       // Send to tiger beatle for processing
 
@@ -70,23 +71,30 @@ export const handler: (producer: Producer) => EachBatchHandler = (
 
       responses.push({ value: JSON.stringify(response) });
       processedOffsets.push(payload.offset);
-
-      await commitOffsetsIfNecessary();
-
-      await heartbeat();
     });
 
-    await producer.send({
-      topic: "transaction-created",
-      messages: responses,
-    });
+    const topicMessages = [
+      {
+        topic: "transaction-created",
+        messages: responses,
+      },
+      {
+        topic: "transaction-validate",
+        messages: responses,
+      },
+    ];
 
-    await commitOffsetsIfNecessary();
+    await producer
+      .sendBatch({ topicMessages })
+      .catch((e) =>
+        console.error(`[error/transaction-request/consumer] ${e.message}`, e),
+      );
 
-    processedOffsets.forEach(async (offset) => {
+    processedOffsets.forEach((offset) => {
       resolveOffset(offset);
-      await commitOffsetsIfNecessary();
     });
+
+    await heartbeat();
   };
 
   return batchTransferRequestHandler;

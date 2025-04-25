@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, ZodIssueCode } from "zod";
 
 export const transactionValidateMessage = z.object({
   number: z.coerce.bigint().positive(),
@@ -18,6 +18,21 @@ export type TransactionValidateMessage = z.infer<
 
 const TRANSACTION_STATUS = ["approved", "rejected", "pending"] as const;
 export type TransactionStatus = (typeof TRANSACTION_STATUS)[number];
+
+export const parseJsonPreprocessor = (value: any, ctx: z.RefinementCtx) => {
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      ctx.addIssue({
+        code: ZodIssueCode.custom,
+        message: (e as Error).message,
+      });
+    }
+  }
+
+  return value;
+};
 
 export const fraudTransactionVeridict = z
   .object({

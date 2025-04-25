@@ -114,13 +114,11 @@ CONSUMER_TOPICS.forEach(async (topic) => {
 
   await consumer.run({
     eachBatchAutoResolve: true,
-    autoCommitInterval: 5000,
-    autoCommitThreshold: 1000,
     eachBatch: handler(db),
   });
 });
 
-app.listen({ port: 3000 }, (err, addr) => {
+app.listen({ port: 3002 }, (err, addr) => {
   if (err) {
     app.log.error(err);
 

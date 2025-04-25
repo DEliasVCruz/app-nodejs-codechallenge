@@ -1,6 +1,6 @@
 import type { EachBatchHandler, Producer } from "kafkajs";
 
-import { z } from "zod";
+import { z, ZodIssueCode } from "zod";
 
 import { handler as transferRequestHandler } from "@/handlers/transfer_request";
 import { handler as transactionFraudValidationHandler } from "@/handlers/transaction_update";
@@ -15,13 +15,28 @@ export const CONSUMER_TOPICS = [
 
 export type ConsumerTopics = (typeof CONSUMER_TOPICS)[number];
 
+export const parseJsonPreprocessor = (value: any, ctx: z.RefinementCtx) => {
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      ctx.addIssue({
+        code: ZodIssueCode.custom,
+        message: (e as Error).message,
+      });
+    }
+  }
+
+  return value;
+};
+
 export const transferRequestMessage = z.object({
   number: z.coerce.bigint().positive(),
   debit_account_id: z.coerce.bigint().positive(),
   credit_account_id: z.coerce.bigint().positive(),
   amount: z.coerce.bigint().positive(),
-  code: z.coerce.number().positive(),
-  ledger: z.coerce.number().positive(),
+  code: z.number().positive(),
+  ledger: z.number().positive(),
 });
 
 export type TransferRequest = z.infer<typeof transferRequestMessage>;
