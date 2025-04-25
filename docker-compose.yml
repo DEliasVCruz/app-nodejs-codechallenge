@@ -23,3 +23,30 @@ services:
       KAFKA_JMX_PORT: 9991
     ports:
       - 9092:9092
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - kafka
+  anti-fraud:
+    build:
+      context: ./services/anti-fraud
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    depends_on:
+      - kafka
+  transactions:
+    build:
+      context: ./services/transactions
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    depends_on:
+      - kafka

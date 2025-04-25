@@ -103,7 +103,9 @@ export const handler: (producer: Producer, tb: Client) => EachBatchHandler = (
     for (const error of account_errors) {
       switch (error.result) {
         case CreateAccountError.exists:
-          console.error(`Batch account at ${error.index} already exists.`);
+          console.log(`Batch account at ${error.index} already exists.`);
+          responses.splice(error.index, 1);
+
           break;
         default:
           console.error(

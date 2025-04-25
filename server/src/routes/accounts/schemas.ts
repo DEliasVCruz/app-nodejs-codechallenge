@@ -3,7 +3,7 @@ import { z } from "zod";
 export const MAX_ACCOUNT_NAME_LENGTH = 255;
 export const MAX_ACCOUNT_NUMER_LENGTH = 22;
 
-const USER_ACCOUNT_STATUS = ["pending", "enabled"] as const;
+const USER_ACCOUNT_STATUS = ["pending", "enabled", "decilned"] as const;
 const ACCOUNT_CURRENCY_TYPES = ["pen", "usd"] as const;
 const USER_ACCOUNT_TYPES = [
   "savings",
@@ -14,7 +14,7 @@ const USER_ACCOUNT_TYPES = [
 export type UserAccountType = (typeof USER_ACCOUNT_TYPES)[number];
 export type UserAccountCurrency = (typeof ACCOUNT_CURRENCY_TYPES)[number];
 
-export const ACCOUNT_STATUS = ["created", "pending"] as const;
+export const ACCOUNT_STATUS = ["created", "pending", "declined"] as const;
 export type AccountStatus = (typeof ACCOUNT_STATUS)[number];
 
 export const getAccountTypeIdByName = (type: UserAccountType) => {

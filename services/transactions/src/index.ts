@@ -9,7 +9,7 @@ import { createClient } from "tigerbeetle-node";
 
 const kafka = new Kafka({
   clientId: "transactions-service",
-  brokers: ["localhost:9092"],
+  brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
 });
 
 const tb = createClient({
@@ -52,16 +52,17 @@ app.get("/ping", (_, res) => {
   res.code(200);
 });
 
-app.listen({ port: 3008 }, (err, addr) => {
-  if (err) {
-    app.log.error(err);
-
-    consumers.forEach((consumer) => {
-      consumer.disconnect();
-    });
-
-    process.exit(1);
-  }
-
-  console.log(`Server listening at ${addr}`);
-});
+app.listen(
+  {
+    port: parseInt(process.env.PORT || "3002"),
+    host: "0.0.0.0",
+  },
+  (err, addr) => {
+    if (err) {
+      app.log.error(err);
+      consumers.forEach((consumer) => consumer.disconnect());
+      process.exit(1);
+    }
+    app.log.info(`Transactions service listening on ${addr}`);
+  },
+);

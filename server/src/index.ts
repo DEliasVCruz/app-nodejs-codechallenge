@@ -20,14 +20,13 @@ import {
 import { router as accountsRouter } from "@accounts/endpoints/router";
 import { router as transactionsRouter } from "@transactions/endpoints/router";
 
+import { buildDatabaseURL } from "@/utils";
+
 import type { UserModel } from "@users/schemas";
 
 import { CONSUMER_TOPICS, getConsumerHandler } from "@bk/schemas";
 
-const dbURL = process.env.DATABASE_URL;
-if (!dbURL) {
-  throw new Error("missing database url");
-}
+const dbURL = buildDatabaseURL();
 
 const app = fastify({
   logger: true,
@@ -36,7 +35,7 @@ const app = fastify({
 app.register(pgDatabasePlugin, { databaseUrl: dbURL });
 app.register(kafkaBrokerPlugin, {
   clientId: "api-server",
-  brokers: ["localhost:9092"],
+  brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
 });
 
 // Add schema validator and serializer
@@ -118,16 +117,21 @@ CONSUMER_TOPICS.forEach(async (topic) => {
   });
 });
 
-app.listen({ port: 3002 }, (err, addr) => {
-  if (err) {
-    app.log.error(err);
+app.listen(
+  {
+    port: parseInt(process.env.PORT || "3000"),
+    host: "0.0.0.0",
+  },
+  (err, addr) => {
+    if (err) {
+      app.log.error(err);
 
-    consumers.forEach((consumer) => {
-      consumer.disconnect();
-    });
+      consumers.forEach((consumer) => {
+        consumer.disconnect();
+      });
 
-    process.exit(1);
-  }
-
-  console.log(`Server listening at ${addr}`);
-});
+      process.exit(1);
+    }
+    app.log.info(`Server listening on ${addr}`);
+  },
+);

@@ -7,7 +7,7 @@ import { handler } from "./handler";
 
 const kafka = new Kafka({
   clientId: "fraud-detection-service",
-  brokers: ["localhost:9092"],
+  brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
 });
 
 const topic = "transaction-validate";
@@ -41,14 +41,17 @@ app.get("/ping", (_, res) => {
   res.code(200);
 });
 
-app.listen({ port: 3005 }, (err, addr) => {
-  if (err) {
-    app.log.error(err);
-
-    consumer.disconnect();
-
-    process.exit(1);
-  }
-
-  console.log(`Server listening at ${addr}`);
-});
+app.listen(
+  {
+    port: parseInt(process.env.PORT || "3001"),
+    host: "0.0.0.0",
+  },
+  (err, addr) => {
+    if (err) {
+      app.log.error(err);
+      consumer.disconnect();
+      process.exit(1);
+    }
+    app.log.info(`Anti-fraud service listening on ${addr}`);
+  },
+);
