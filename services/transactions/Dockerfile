@@ -2,6 +2,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install io-uring packages in the docker machine
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    linux-headers \
+    liburing-dev
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.9.0 --activate
 
@@ -19,8 +26,8 @@ RUN pnpm run type-check
 
 # Set environment variables
 ENV PORT=3002
-ENV KAFKA_BROKERS=kafka:29092
-ENV TB_ADDRESS=host.docker.internal:4000
+ENV KAFKA_BROKERS=localhost:9092
+ENV TB_ADDRESS=4000
 
 # Expose the port the app runs on
 EXPOSE ${PORT}

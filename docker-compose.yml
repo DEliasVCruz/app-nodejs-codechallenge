@@ -45,9 +45,8 @@ services:
     build:
       context: ./services/transactions
       dockerfile: Dockerfile
-    ports:
-      - "3002:3002"
+    network_mode: "host"
     depends_on:
       - kafka
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    security_opt:
+      - seccomp=unconfined
