@@ -19,6 +19,7 @@ import type { SafeParseSuccess } from "zod";
 import {
   parseJsonPreprocessor,
   transferRequestMessage,
+  DEFAULT_TRANSCATION_EXPIRATION_TIME,
   type TransferRequest,
   type TransferCreatedMessage,
 } from "@/schemas";
@@ -85,7 +86,7 @@ export const handler: (producer: Producer, tb: Client) => EachBatchHandler = (
         user_data_128: 0n,
         user_data_64: 0n,
         user_data_32: 0,
-        timeout: 0,
+        timeout: DEFAULT_TRANSCATION_EXPIRATION_TIME,
         ledger: payload.value.data.ledger,
         code: payload.value.data.code,
         flags: TransferFlags.pending,
@@ -113,24 +114,23 @@ export const handler: (producer: Producer, tb: Client) => EachBatchHandler = (
 
     const transfer_errors = await tb.createTransfers(requests);
     for (const error of transfer_errors) {
+      responses.splice(error.index, 1);
+
       switch (error.result) {
         case CreateTransferError.exists:
-          console.error(`Batch transfe at ${error.index} already exists.`);
+          console.log(`Batch transfe at ${error.index} already exists.`);
           break;
         default:
           console.error(
-            `Batch account at ${error.index} failed to create: ${
+            `Batch tranfer at ${error.index} failed to create: ${
               CreateTransferError[error.result]
             }.`,
           );
       }
     }
 
+    // TODO: Reporpouse transaction create to be used for failed topoic
     const topicMessages = [
-      {
-        topic: "transaction-created",
-        messages: responses,
-      },
       {
         topic: "transaction-validate",
         messages: responses,

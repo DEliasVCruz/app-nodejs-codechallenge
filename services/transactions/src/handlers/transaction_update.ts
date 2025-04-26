@@ -85,7 +85,7 @@ export const handler: (producer: Producer, tb: Client) => EachBatchHandler = (
         user_data_32: 0,
         timeout: 0,
         ledger: payload.value.data.ledger,
-        code: payload.value.data.code,
+        code: 0,
         flags: flag,
         timestamp: 0n,
       };
@@ -107,13 +107,15 @@ export const handler: (producer: Producer, tb: Client) => EachBatchHandler = (
 
     const transfer_errors = await tb.createTransfers(requests);
     for (const error of transfer_errors) {
+      responses.splice(error.index, 1);
+
       switch (error.result) {
         case CreateTransferError.exists:
-          console.error(`Batch transfe at ${error.index} already exists.`);
+          console.error(`Batch transfer at ${error.index} already exists.`);
           break;
         default:
           console.error(
-            `Batch account at ${error.index} failed to create: ${
+            `Batch transfer at ${error.index} failed to create: ${
               CreateTransferError[error.result]
             }.`,
           );
@@ -122,7 +124,7 @@ export const handler: (producer: Producer, tb: Client) => EachBatchHandler = (
 
     await producer
       .send({
-        topic: "transaction-update",
+        topic: "transaction-created",
         messages: responses,
       })
       .catch((e) =>

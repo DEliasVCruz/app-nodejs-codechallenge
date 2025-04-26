@@ -8,6 +8,8 @@ import { handler as transferRequestHandler } from "@/handlers/transfer_request";
 import { handler as transactionFraudValidationHandler } from "@/handlers/transaction_update";
 import { handler as accountCreateHandler } from "@/handlers/account_create";
 
+export const DEFAULT_TRANSCATION_EXPIRATION_TIME = 20; // time in seconds
+
 const TRANSFER_FLAG_BY_TRANSACTION_STATUS: Record<
   TransactionStatus,
   TransferFlags
