@@ -2,7 +2,10 @@ import "dotenv/config";
 
 import { fastify, type FastifyPluginCallback } from "fastify";
 import { pgDatabasePlugin } from "@db/plugin";
-import { kafkaBrokerPlugin } from "@/broker/plugin";
+import {
+  kafkaBrokerPlugin,
+  kafkaAccountsCreateRpcCientPlugin,
+} from "@/broker/plugin";
 
 import { Kafka, type Consumer } from "kafkajs";
 
@@ -26,19 +29,32 @@ import type { UserModel } from "@users/schemas";
 
 import { CONSUMER_TOPICS, getConsumerHandler } from "@bk/schemas";
 
-const dbURL = buildDatabaseURL();
+import pino from "pino";
 
+const service = "api-server";
+const logger = pino({ name: service });
+
+logger.info("service_setup_initiated");
+
+const dbURL = buildDatabaseURL();
 const app = fastify({
   logger: true,
 });
 
-console.log("The value of kafka brokers", process.env.KAFKA_BROKERS);
-
 app.register(pgDatabasePlugin, { databaseUrl: dbURL });
 app.register(kafkaBrokerPlugin, {
-  clientId: "api-server",
+  clientId: service,
   brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
 });
+app.register(kafkaAccountsCreateRpcCientPlugin, {
+  clientId: service,
+  brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
+  service,
+  timeOutMs: 2_000,
+  logger: logger,
+});
+
+logger.info("http_plugins_registered");
 
 // Add schema validator and serializer
 app.setValidatorCompiler(validatorCompiler);
@@ -78,6 +94,8 @@ app
     app.addHook("preHandler", app.auth([verifyBearerAuth]));
   });
 
+logger.info("auth_pre_handlers_setup_succeeded");
+
 const routes = [
   accountsRouter,
   transactionsRouter,
@@ -87,8 +105,10 @@ routes.forEach((route) => {
   app.register(route, { prefix: "/api" });
 });
 
+logger.info("http_routes_registered");
+
 const kafka = new Kafka({
-  clientId: "api-server",
+  clientId: service,
   brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
 });
 
@@ -102,7 +122,7 @@ const db = drizzle({ client: pool });
 
 CONSUMER_TOPICS.forEach(async (topic) => {
   const consumer = kafka.consumer({
-    groupId: `api-consumer-${topic}`,
+    groupId: `${service}-consumer-${topic}`,
   });
   consumers.push(consumer);
 
