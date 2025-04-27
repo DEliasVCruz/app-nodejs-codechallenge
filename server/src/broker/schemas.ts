@@ -5,14 +5,12 @@ import { z, ZodIssueCode } from "zod";
 
 import { handler as transactionCreatedHandler } from "@bk/handlers/transaction_created";
 import { handler as transactionUpdateHandler } from "@bk/handlers/transaction_updated";
-import { handler as accountCreatedHandler } from "@bk/handlers/account_created";
 
 import { TRANSACTION_STATUS } from "@transactions/schemas";
 
 import { ACCOUNT_STATUS } from "@accounts/schemas";
 
 export const CONSUMER_TOPICS = [
-  "account-created",
   "transaction-created",
   "transaction-update",
 ] as const;
@@ -35,8 +33,7 @@ export const parseJsonPreprocessor = (value: any, ctx: z.RefinementCtx) => {
 };
 
 export const accountCreatedMessage = z.object({
-  account_id: z.string(),
-  update_date: z.string(),
+  account_number: z.string(),
   status: z.enum(ACCOUNT_STATUS),
 });
 
@@ -87,7 +84,6 @@ const TOPIC_CONSUMER_HANDLER_MAP: Record<
 > = {
   "transaction-created": transactionCreatedHandler,
   "transaction-update": transactionUpdateHandler,
-  "account-created": accountCreatedHandler,
 };
 
 export const getConsumerHandler = (topic: ConsumerTopics) => {

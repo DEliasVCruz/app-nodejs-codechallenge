@@ -18,7 +18,7 @@ const create_transaction = async (app: FastifyInstance, _: RouteOptions) => {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
   route.post(
-    "/:account_id/request",
+    "/:account_id/transfer",
     {
       schema: {
         body: createTransactionRequest,

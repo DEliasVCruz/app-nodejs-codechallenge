@@ -8,7 +8,7 @@ const nanoid = customAlphabet(alphabet, 22);
 
 import {
   createAccountRequest,
-  userAccountCreationAccepted,
+  userAccountCreationSucceeded,
   userAccountCreationFailed,
   getOperationByAccountTypeId,
   getAccountTypeIdByName,
@@ -31,7 +31,7 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
       schema: {
         body: createAccountRequest,
         response: {
-          201: userAccountCreationAccepted,
+          201: userAccountCreationSucceeded,
           500: userAccountCreationFailed,
         },
       },

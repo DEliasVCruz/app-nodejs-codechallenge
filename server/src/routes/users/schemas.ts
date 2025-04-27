@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const USER_ROLES = ["admin", "customer"] as const;
+const USER_ROLES = ["admin", "customer", "agent"] as const;
 
 export const userModel = z.object({
   name: z.string().nonempty(),

@@ -81,7 +81,7 @@ export type AccountCreateRpcClient = KafkaRpcClient<
   AccountCreateRpcResponse
 >;
 
-export const userAccountCreationAccepted = z.object({
+export const userAccountCreationSucceeded = z.object({
   id: z.string(),
   name: z.string(),
   number: z.string(),

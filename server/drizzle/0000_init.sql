@@ -22,7 +22,7 @@ INSERT INTO operations (id, name, description)
 VALUES (1003, 'credit_line_payment', 'payment of credit line balance');
 
 INSERT INTO operations (id, name, description) 
-VALUES (2001, 'savings_account_created', 'creation of a savings account');
+VALUES (2001, 'savings_account_create', 'creation of a savings account');
 
 INSERT INTO users (id, name, document_id, role) 
 VALUES ('zh4hzl7rzvzw', 'Daniel', '75604110', 'admin');

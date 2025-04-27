@@ -5,10 +5,7 @@ import {
   ledgersTable,
   accountTypesTable,
 } from "@db/schemas/accounts";
-import { and, eq, gt, or, inArray, asc } from "drizzle-orm";
-
-import type { AccountStatus } from "@accounts/schemas";
-import { DateTime } from "luxon";
+import { and, eq, gt, or, asc } from "drizzle-orm";
 
 export type UserAccountsListCursor = {
   ledger_id: number; // asc
@@ -143,30 +140,9 @@ const insertUserAccount = (db: NodePgDatabase, account: NewAccount) => {
   });
 };
 
-const updateStatusBatch = async (
-  db: NodePgDatabase,
-  id: Array<string>,
-  status: AccountStatus,
-) => {
-  const result = await db
-    .update(accountsTable)
-    .set({ status: status, update_date: new Date(DateTime.utc().toISO()) })
-    .where(inArray(accountsTable.id, id))
-    .returning({
-      account_id: accountsTable.id,
-    });
-
-  if (!result) {
-    throw new Error("update accounts status failed");
-  }
-
-  return result;
-};
-
 export const accounts = {
   insertUserAccount,
   getWithUserAccountNumbers,
-  updateStatusBatch,
   getUserAccounts,
   getUserAccount,
 };
