@@ -1,32 +1,42 @@
 import { z } from "zod";
 
+import type { KafkaRpcClient } from "@/broker/rpc";
+
 export const MAX_ACCOUNT_NAME_LENGTH = 255;
 export const MAX_ACCOUNT_NUMER_LENGTH = 22;
 
-const USER_ACCOUNT_STATUS = ["pending", "enabled", "decilned"] as const;
+export const USER_ACCOUNT_STATUS = ["pending", "enabled", "decilned"] as const;
 const ACCOUNT_CURRENCY_TYPES = ["pen", "usd"] as const;
-const USER_ACCOUNT_TYPES = [
-  "savings",
-  "personal_credit",
-  "credit_line",
-] as const;
+const ACCOUNT_TYPES = ["savings", "personal_credit", "credit_line"] as const;
 
-export type UserAccountType = (typeof USER_ACCOUNT_TYPES)[number];
+export const ACCOUNTS_CREATE_RPC_DECORATOR = "accountsCreate";
+
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
 export type UserAccountCurrency = (typeof ACCOUNT_CURRENCY_TYPES)[number];
 
-export const ACCOUNT_STATUS = ["created", "pending", "declined"] as const;
+const ACCOUNT_FLAGS_BY_TYPE: Record<AccountType, number> = {
+  savings: 4,
+  credit_line: 2,
+  personal_credit: 2,
+};
+
+export const ACCOUNT_STATUS = ["enabled", "disabled", "blocked"] as const;
 export type AccountStatus = (typeof ACCOUNT_STATUS)[number];
 
-export const getAccountTypeIdByName = (type: UserAccountType) => {
-  return USER_ACCOUNT_TYPES.indexOf(type) + 1;
+export const getAccountTypeIdByName = (type: AccountType) => {
+  return ACCOUNT_TYPES.indexOf(type) + 1;
 };
 
 export const getAccountTyepById = (type: number) => {
-  return USER_ACCOUNT_TYPES[type - 1];
+  return ACCOUNT_TYPES[type - 1];
 };
 
 export const getOperationByAccountTypeId = (typeId: number) => {
   return 2000 + typeId;
+};
+
+export const accountFlagsByAccountType = (type: AccountType) => {
+  return ACCOUNT_FLAGS_BY_TYPE[type];
 };
 
 export const getAccountLedgerByCurrencyName = (type: UserAccountCurrency) => {
@@ -34,6 +44,7 @@ export const getAccountLedgerByCurrencyName = (type: UserAccountCurrency) => {
 };
 
 export const createAccountRequest = z.object({
+  number: z.coerce.bigint().gt(0n, "account number must be non 0"),
   name: z
     .string({
       required_error: "Name is required",
@@ -44,7 +55,7 @@ export const createAccountRequest = z.object({
     .max(MAX_ACCOUNT_NAME_LENGTH, {
       message: `Account name can't be over ${MAX_ACCOUNT_NAME_LENGTH} characters`,
     }),
-  type: z.enum(USER_ACCOUNT_TYPES, {
+  type: z.enum(ACCOUNT_TYPES, {
     required_error: "Account type is required",
   }),
   currency: z.enum(ACCOUNT_CURRENCY_TYPES, {
@@ -52,8 +63,29 @@ export const createAccountRequest = z.object({
   }),
 });
 
+export type AccountCreateRpcRequest = {
+  number: string;
+  ledger: number;
+  operation: number;
+  flags: number;
+};
+
+export const accountCreateRpcResponse = z.object({
+  account_number: z.string(),
+});
+
+export type AccountCreateRpcResponse = z.infer<typeof accountCreateRpcResponse>;
+
+export type AccountCreateRpcClient = KafkaRpcClient<
+  AccountCreateRpcRequest,
+  AccountCreateRpcResponse
+>;
+
 export const userAccountCreationAccepted = z.object({
-  message: z.string(),
+  id: z.string(),
+  name: z.string(),
+  number: z.string(),
+  creation_date: z.date(),
   status: z.enum(USER_ACCOUNT_STATUS),
 });
 
@@ -69,7 +101,7 @@ export const userAccountResponseModel = z.object({
   account_number: z.number(),
   currency: z.enum(ACCOUNT_CURRENCY_TYPES),
   balance: z.number(),
-  type: z.enum(USER_ACCOUNT_TYPES),
+  type: z.enum(ACCOUNT_TYPES),
   max_balance: z.nullable(z.number()),
   name: z.string(),
 });

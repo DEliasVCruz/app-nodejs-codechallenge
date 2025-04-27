@@ -1,10 +1,20 @@
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { accountsTable } from "@db/schemas/accounts";
-import { and, eq, or, inArray } from "drizzle-orm";
+import {
+  accountsTable,
+  ledgersTable,
+  accountTypesTable,
+} from "@db/schemas/accounts";
+import { and, eq, gt, or, inArray, asc } from "drizzle-orm";
 
 import type { AccountStatus } from "@accounts/schemas";
 import { DateTime } from "luxon";
+
+export type UserAccountsListCursor = {
+  ledger_id: number; // asc
+  creation_date: Date; // asc
+  number: string; // asc
+};
 
 const getWithUserAccountNumbers = async (
   db: NodePgDatabase,
@@ -40,6 +50,99 @@ const getWithUserAccountNumbers = async (
   return account;
 };
 
+const getUserAccounts = async (
+  db: NodePgDatabase,
+  user_id: string,
+  page_size: number,
+  balance_type: "debit" | "credit",
+  cursor?: UserAccountsListCursor,
+) => {
+  return await db
+    .select({
+      id: accountsTable.id,
+      number: accountsTable.number,
+      name: accountsTable.name,
+      type: accountTypesTable.name,
+      balance: accountsTable.balance,
+      currency: ledgersTable.currency,
+      status: accountsTable.status,
+    })
+    .from(accountsTable)
+    .innerJoin(ledgersTable, eq(accountsTable.ledger_id, ledgersTable.id))
+    .innerJoin(
+      accountTypesTable,
+      eq(accountsTable.account_type_id, accountTypesTable.id),
+    )
+    .where(
+      and(
+        eq(accountsTable.user_id, user_id),
+        eq(accountTypesTable.balance_type, balance_type),
+        cursor
+          ? or(
+              gt(accountsTable.ledger_id, cursor?.ledger_id),
+              and(
+                eq(accountsTable.ledger_id, cursor.ledger_id),
+                gt(accountsTable.creation_date, cursor.creation_date),
+              ),
+              and(
+                eq(accountsTable.ledger_id, cursor.ledger_id),
+                eq(accountsTable.creation_date, cursor.creation_date),
+                gt(accountsTable.number, cursor.number),
+              ),
+            )
+          : undefined,
+      ),
+    )
+    .orderBy(
+      asc(accountsTable.ledger_id),
+      asc(accountsTable.creation_date),
+      asc(accountsTable.number),
+    )
+    .limit(page_size + 1);
+};
+
+const getUserAccount = async (
+  db: NodePgDatabase,
+  user_id: string,
+  account_id: string,
+) => {
+  return await db
+    .select({
+      id: accountsTable.id,
+      number: accountsTable.number,
+      name: accountsTable.name,
+      type: accountTypesTable.name,
+      balance: accountsTable.balance,
+      balance_type: accountTypesTable.balance_type,
+      currency: ledgersTable.currency,
+      creation_date: accountsTable.creation_date,
+      update_date: accountsTable.update_date,
+      max_balance: accountsTable.max_balance,
+      status: accountsTable.status,
+    })
+    .from(accountsTable)
+    .leftJoin(ledgersTable, eq(accountsTable.ledger_id, ledgersTable.id))
+    .leftJoin(
+      accountTypesTable,
+      eq(accountsTable.account_type_id, accountTypesTable.id),
+    )
+    .where(
+      and(eq(accountsTable.user_id, user_id), eq(accountsTable.id, account_id)),
+    );
+};
+
+export type NewAccount = typeof accountsTable.$inferInsert;
+
+const insertUserAccount = (db: NodePgDatabase, account: NewAccount) => {
+  return db.insert(accountsTable).values(account).returning({
+    id: accountsTable.id,
+    name: accountsTable.name,
+    number: accountsTable.number,
+    creation_date: accountsTable.creation_date,
+    status: accountsTable.status,
+  });
+};
+
 const updateStatusBatch = async (
   db: NodePgDatabase,
   id: Array<string>,
@@ -61,6 +164,9 @@ const updateStatusBatch = async (
 };
 
 export const accounts = {
+  insertUserAccount,
   getWithUserAccountNumbers,
   updateStatusBatch,
+  getUserAccounts,
+  getUserAccount,
 };

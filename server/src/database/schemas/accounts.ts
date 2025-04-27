@@ -7,13 +7,18 @@ import {
   smallint,
   timestamp,
   char,
+  pgEnum,
 } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+
+import { USER_ACCOUNT_STATUS } from "@accounts/schemas";
 
 import {
   MAX_ACCOUNT_NAME_LENGTH,
   MAX_ACCOUNT_NUMER_LENGTH,
 } from "@accounts/schemas";
+
+const accountStatusEnum = pgEnum("status", USER_ACCOUNT_STATUS);
 
 export const accountsTable = pgTable("accounts", {
   id: char({ length: MAX_ACCOUNT_NUMER_LENGTH })
@@ -33,13 +38,13 @@ export const accountsTable = pgTable("accounts", {
     .references(() => ledgersTable.id),
   account_type_id: smallint()
     .notNull()
-    .references(() => acountTypesTable.id),
+    .references(() => accountTypesTable.id),
   max_balance: decimal<"number">({ precision: 11, scale: 2 }),
   creation_date: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
   update_date: timestamp("updated_at", { withTimezone: true }),
-  status: varchar({ length: 255 }).notNull().default("pending"),
+  status: accountStatusEnum().notNull().default("enabled"),
 });
 
 export const transactionsTable = pgTable("transactions", {
@@ -67,7 +72,7 @@ export const ledgersTable = pgTable("ledgers", {
   currency: varchar({ length: 100 }).notNull(),
 });
 
-export const acountTypesTable = pgTable("account-types", {
+export const accountTypesTable = pgTable("account-types", {
   id: smallint().unique().primaryKey().notNull(),
   name: varchar({ length: 255 }).notNull(),
   description: text().notNull(),

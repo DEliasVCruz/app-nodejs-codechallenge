@@ -1,15 +1,26 @@
 import type { FastifyInstance, RouteOptions } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 
+import { customAlphabet } from "nanoid";
+
+const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
+const nanoid = customAlphabet(alphabet, 22);
+
 import {
   createAccountRequest,
   userAccountCreationAccepted,
   userAccountCreationFailed,
   getOperationByAccountTypeId,
+  getAccountTypeIdByName,
+  getAccountLedgerByCurrencyName,
+  accountFlagsByAccountType,
+  ACCOUNTS_CREATE_RPC_DECORATOR,
 } from "@accounts/schemas";
-import { createUserAccount } from "@accounts/functions/create_account";
+import { accounts } from "@db/queries/accounts";
 
 import type { UserModel } from "@users/schemas";
+
+import type { AccountCreateRpcClient } from "@accounts/schemas";
 
 const create_account = async (app: FastifyInstance, _: RouteOptions) => {
   const route = app.withTypeProvider<ZodTypeProvider>();
@@ -27,37 +38,55 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
     },
     async (req, res) => {
       const user = req.getDecorator<UserModel>("user");
+      const rpc = req.getDecorator<AccountCreateRpcClient>(
+        ACCOUNTS_CREATE_RPC_DECORATOR,
+      );
 
-      const account = await createUserAccount(app.pgdb, {
-        account_name: req.body.name,
-        currency: req.body.currency,
-        type: req.body.type,
-        user_id: user.id,
-      });
-      if (account == undefined) {
+      const accountTypeId = getAccountTypeIdByName(req.body.type);
+      const ledger = getAccountLedgerByCurrencyName(req.body.currency);
+      const account_number = req.body.number.toString();
+
+      const payload = {
+        number: account_number,
+        ledger: ledger,
+        operation: getOperationByAccountTypeId(accountTypeId),
+        flags: accountFlagsByAccountType(req.body.type),
+      };
+
+      const response = await rpc
+        .request(payload)
+        .then((rsp) => {
+          return rsp;
+        })
+        .catch((e: Error) => {
+          console.log(e);
+        });
+
+      if (!response) {
         res.code(500);
 
         return { message: "failed to create account" };
       }
 
-      const producer = app.kafka.producer();
-
-      const request = {
-        account_id: account.account_id,
-        number: account.account_number.toString(),
-        ledger: account.ledger_id,
-        operation: getOperationByAccountTypeId(account.account_type_id),
-      };
-
-      try {
-        await producer.connect();
-        await producer.send({
-          topic: "account-create",
-          messages: [{ value: JSON.stringify(request) }],
+      const account = await accounts
+        .insertUserAccount(app.pgdb, {
+          name: req.body.name,
+          user_id: user.id,
+          id: nanoid(),
+          ledger_id: ledger,
+          number: account_number,
+          account_type_id: accountTypeId,
+        })
+        .onConflictDoNothing()
+        .then((account) => {
+          console.log("user_account_created");
+          return account;
+        })
+        .catch((e: Error) => {
+          console.error(e);
         });
 
-        await producer.disconnect();
-      } catch {
+      if (!account) {
         res.code(500);
 
         return { message: "failed to create account" };
@@ -65,10 +94,7 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
 
       res.code(201);
 
-      return {
-        message: "account creation request accepted",
-        status: "pending",
-      };
+      return account[0];
     },
   );
 };
