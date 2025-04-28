@@ -4,7 +4,7 @@ import type { UserModel } from "@users/schemas";
 
 import { transactions } from "@db/queries/transactions";
 
-import { userAccuntIDParam } from "@accounts/schemas";
+import { userAccuntIdParam } from "@accounts/schemas";
 
 import {
   listUserTransactionsCursor,
@@ -25,7 +25,7 @@ const listAccountTransactions = async (
     "/:account_id/transactions",
     {
       schema: {
-        params: userAccuntIDParam,
+        params: userAccuntIdParam,
         querystring: listTransactionsQueryParams,
         response: {
           200: listAccountTransactionsRsponse,

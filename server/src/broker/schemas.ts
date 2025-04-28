@@ -3,17 +3,13 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { z } from "zod";
 
-import { handler as transactionCreatedHandler } from "@bk/handlers/transaction_created";
 import { handler as transactionUpdateHandler } from "@bk/handlers/transaction_updated";
 
 import { TRANSACTION_STATUS } from "@transactions/schemas";
 
 import { ACCOUNT_STATUS } from "@accounts/schemas";
 
-export const CONSUMER_TOPICS = [
-  "transaction-created",
-  "transaction-update",
-] as const;
+export const CONSUMER_TOPICS = ["transaction-update"] as const;
 
 export type ConsumerTopics = (typeof CONSUMER_TOPICS)[number];
 
@@ -67,7 +63,6 @@ const TOPIC_CONSUMER_HANDLER_MAP: Record<
   ConsumerTopics,
   (producer: NodePgDatabase) => EachBatchHandler
 > = {
-  "transaction-created": transactionCreatedHandler,
   "transaction-update": transactionUpdateHandler,
 };
 

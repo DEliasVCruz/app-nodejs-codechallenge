@@ -92,7 +92,7 @@ export const userAccountCreationFailed = z.object({
   message: z.string(),
 });
 
-export const userAccuntIDParam = z.object({
+export const userAccuntIdParam = z.object({
   account_id: z.string().max(MAX_ACCOUNT_NUMER_LENGTH),
 });
 

@@ -63,6 +63,20 @@ const updateStatusBatch = async (
   return result;
 };
 
+const insertTransactions = (
+  db: NodePgDatabase,
+  transactions: NewTransaction[],
+) => {
+  return db.insert(transactionsTable).values(transactions).returning({
+    id: transactionsTable.id,
+    debit_account_number: transactionsTable.debit_account_number,
+    credit_account_number: transactionsTable.credit_account_number,
+    creation_date: transactionsTable.creation_date,
+    value: transactionsTable.value,
+    status: transactionsTable.status,
+  });
+};
+
 const debitAccounts = aliasedTable(accountsTable, "debit_accounts");
 const creditAccounts = aliasedTable(accountsTable, "credit_accounts");
 
@@ -191,4 +205,5 @@ export const transactions = {
   insertBatch,
   listUserTransactions,
   getTransaction,
+  insertTransactions,
 };

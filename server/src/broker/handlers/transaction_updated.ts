@@ -7,10 +7,11 @@ import type { TransactionStatus } from "@transactions/schemas";
 import type { EachBatchHandler } from "kafkajs";
 import type { SafeParseSuccess } from "zod";
 import {
-  parseJsonPreprocessor,
   transactionUpdatedMessage,
   type TransactionUpdateMessage,
 } from "@bk/schemas";
+
+import { parseJsonPreprocessor } from "@/utils";
 
 import { transactions } from "@db/queries/transactions";
 

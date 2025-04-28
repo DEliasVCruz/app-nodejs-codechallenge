@@ -136,8 +136,8 @@ const getUserAccount = async (
 
 export type NewAccount = typeof accountsTable.$inferInsert;
 
-const insertUserAccounts = (db: NodePgDatabase, account: NewAccount[]) => {
-  return db.insert(accountsTable).values(account).returning({
+const insertUserAccounts = (db: NodePgDatabase, accounts: NewAccount[]) => {
+  return db.insert(accountsTable).values(accounts).returning({
     id: accountsTable.id,
     name: accountsTable.name,
     number: accountsTable.number,

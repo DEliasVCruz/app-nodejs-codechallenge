@@ -3,7 +3,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 
 import type { UserModel } from "@users/schemas";
 
-import { userAccuntIDParam, userAccountResponseModel } from "@accounts/schemas";
+import { userAccuntIdParam, userAccountResponseModel } from "@accounts/schemas";
 
 import { accounts } from "@db/queries/accounts";
 
@@ -14,7 +14,7 @@ const getAccount = async (app: FastifyInstance, _: RouteOptions) => {
     "/:account_id",
     {
       schema: {
-        params: userAccuntIDParam,
+        params: userAccuntIdParam,
         response: {
           200: userAccountResponseModel,
         },

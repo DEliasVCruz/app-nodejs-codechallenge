@@ -24,6 +24,13 @@ import {
   type AccountCreateRpcResponse,
 } from "@accounts/schemas";
 
+import {
+  transactionCreateRespnse,
+  TRANSACTIONS_CREATE_RPC_DECORATOR,
+  type TransactionCreateRequest,
+  type TransactionCreateResponse,
+} from "@transactions/schemas";
+
 export const kafkaBrokerPlugin = fp(
   async (app: FastifyInstance, options: KafkaPluginOptions) => {
     const kafka = new Kafka({
@@ -35,7 +42,7 @@ export const kafkaBrokerPlugin = fp(
   },
 );
 
-export const kafkaAccountsCreateRpcCientPlugin = fp(
+export const kafkaAccountsCreateRpcClientPlugin = fp(
   async (app: FastifyInstance, options: kafkaRpcClientOptions) => {
     const kafka = new Kafka({
       clientId: options.clientId,
@@ -55,5 +62,28 @@ export const kafkaAccountsCreateRpcCientPlugin = fp(
     );
 
     app.decorate(ACCOUNTS_CREATE_RPC_DECORATOR, rpc);
+  },
+);
+
+export const kafkaTransactionsCreateRpcClientPlugin = fp(
+  async (app: FastifyInstance, options: kafkaRpcClientOptions) => {
+    const kafka = new Kafka({
+      clientId: options.clientId,
+      brokers: options.brokers,
+    });
+
+    const rpc = await kafaRpcClient.create<
+      TransactionCreateRequest,
+      TransactionCreateResponse
+    >(
+      kafka,
+      "transactions-create",
+      options.service,
+      options.timeOutMs,
+      transactionCreateRespnse,
+      options.logger,
+    );
+
+    app.decorate(TRANSACTIONS_CREATE_RPC_DECORATOR, rpc);
   },
 );

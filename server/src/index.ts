@@ -4,7 +4,8 @@ import { fastify, type FastifyPluginCallback } from "fastify";
 import { pgDatabasePlugin } from "@db/plugin";
 import {
   kafkaBrokerPlugin,
-  kafkaAccountsCreateRpcCientPlugin,
+  kafkaAccountsCreateRpcClientPlugin,
+  kafkaTransactionsCreateRpcClientPlugin,
 } from "@/broker/plugin";
 
 import { Kafka, type Consumer } from "kafkajs";
@@ -46,7 +47,14 @@ app.register(kafkaBrokerPlugin, {
   clientId: service,
   brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
 });
-app.register(kafkaAccountsCreateRpcCientPlugin, {
+app.register(kafkaAccountsCreateRpcClientPlugin, {
+  clientId: service,
+  brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
+  service,
+  timeOutMs: 2_000,
+  logger: logger,
+});
+app.register(kafkaTransactionsCreateRpcClientPlugin, {
   clientId: service,
   brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
   service,

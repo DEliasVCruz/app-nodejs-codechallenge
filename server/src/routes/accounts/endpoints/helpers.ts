@@ -34,7 +34,7 @@ export const getTransactionAccount = async (
       return undefined;
     });
 
-  if (account == undefined) return;
+  if (!account) throw new Error("account not found");
 
   const account_type = getAccountTyepById(account.account_type);
   if (!account_type) throw new Error("un tracked account type");
@@ -46,14 +46,14 @@ export const getTransactionAccount = async (
     account_balance_type == "debit" &&
     account.account_number == debit_account_number
   )
-    return;
+    throw new Error("can't debit to own account");
 
   // Cant ask to credit from the same credit account that reqauested it
   if (
     account_balance_type == "credit" &&
     account.account_number == credit_account_number
   )
-    return;
+    throw new Error("can't credit to own account");
 
   return account;
 };
