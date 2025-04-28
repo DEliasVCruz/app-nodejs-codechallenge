@@ -1,48 +1,57 @@
 import type { FastifyInstance, RouteOptions } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import z from "zod";
+import type { UserModel } from "@users/schemas";
 
-const get_transaction = async (app: FastifyInstance, _: RouteOptions) => {
+import { transactions } from "@db/queries/transactions";
+
+import {
+  getTransactionRequest,
+  getTransactionReponse,
+} from "@transactions/schemas";
+
+const getTransaction = async (app: FastifyInstance, _: RouteOptions) => {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
   route.get(
-    "/:id",
+    "/:transaction_id",
     {
       schema: {
-        params: z.object({
-          id: z
-            .string()
-            .max(9)
-            .transform((val, ctx) => {
-              const parsed = parseInt(val);
-
-              if (isNaN(parsed)) {
-                ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
-                  message: "Not an account number",
-                });
-
-                // This is a special symbol you can use to
-                // return early from the transform function.
-                // It has type `never` so it does not affect the
-                // inferred return type.
-                return z.NEVER;
-              }
-
-              return parsed;
-            }),
-        }),
+        params: getTransactionRequest,
+        response: {
+          200: getTransactionReponse,
+        },
       },
     },
     async (req, res) => {
-      // Here we get an account dire tly from the database
+      const user = req.getDecorator<UserModel>("user");
+
+      const result = await transactions
+        .getTransaction(app.pgdb, user.id, req.params.transaction_id)
+        .then((results) => {
+          return { transactions: results, error: undefined };
+        })
+        .catch((e: Error) => {
+          console.error(e);
+
+          return { transactions: [], error: e };
+        });
+
+      if (result.error) {
+        res.code(500);
+
+        return;
+      }
+
+      if (!result.transactions.length) {
+        res.code(404);
+
+        return;
+      }
 
       res.code(200);
-      res.send({
-        id: req.params.id,
-      });
+      return result.transactions[0];
     },
   );
 };
 
-export { get_transaction };
+export { getTransaction };

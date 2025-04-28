@@ -5,7 +5,6 @@ import type { KafkaRpcClient } from "@/broker/rpc";
 export const MAX_ACCOUNT_NAME_LENGTH = 255;
 export const MAX_ACCOUNT_NUMER_LENGTH = 22;
 
-export const USER_ACCOUNT_STATUS = ["pending", "enabled", "decilned"] as const;
 const ACCOUNT_CURRENCY_TYPES = ["pen", "usd"] as const;
 const ACCOUNT_TYPES = ["savings", "personal_credit", "credit_line"] as const;
 
@@ -86,7 +85,7 @@ export const userAccountCreationSucceeded = z.object({
   name: z.string(),
   number: z.string(),
   creation_date: z.date(),
-  status: z.enum(USER_ACCOUNT_STATUS),
+  status: z.enum(ACCOUNT_STATUS),
 });
 
 export const userAccountCreationFailed = z.object({
@@ -108,11 +107,7 @@ export const userAccountResponseModel = z.object({
   creation_date: z.date(),
   update_date: z.date().nullable(),
   max_balance: z.number().nullable(),
-  status: z.enum(USER_ACCOUNT_STATUS),
-});
-
-export const getAccountRequest = z.object({
-  account_number: z.number(),
+  status: z.enum(ACCOUNT_STATUS),
 });
 
 export const listUserAccountsCursor = z.object({
@@ -121,4 +116,28 @@ export const listUserAccountsCursor = z.object({
   ledger_id: z.number(),
   craetion_date: z.coerce.date(),
   number: z.string(),
+});
+
+export const listAccountsQueryParams = z.object({
+  currency: z.enum(["pen", "usd"]).optional(),
+  type: z.enum(["debit", "credit"]).optional(),
+  page_size: z.number().min(2).optional().default(10),
+  start_key: z.string().optional(),
+});
+
+export const listAccountsResponse = z.object({
+  accounts: z.array(
+    z.object({
+      id: z.string(),
+      number: z.string(),
+      name: z.string(),
+      type: z.string(),
+      balance: z.number(),
+      currency: z.string(),
+      status: z.enum(ACCOUNT_STATUS),
+      ledger_id: z.number(),
+      creation_date: z.date(),
+    }),
+  ),
+  next: z.string().optional(),
 });

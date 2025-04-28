@@ -31,7 +31,7 @@ const getAccount = async (app: FastifyInstance, _: RouteOptions) => {
         .catch((e: Error) => {
           console.error(e);
 
-          return { value: [], error: e };
+          return { accounts: [], error: e };
         });
 
       if (result.error) {
@@ -40,7 +40,7 @@ const getAccount = async (app: FastifyInstance, _: RouteOptions) => {
         return;
       }
 
-      if (result.accounts.length) {
+      if (!result.accounts.length) {
         res.code(404);
 
         return;

@@ -2,8 +2,6 @@ import type { FastifyInstance, RouteOptions } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import type { UserModel } from "@users/schemas";
 
-import { z } from "zod";
-
 import { userAccuntIDParam } from "@accounts/schemas";
 
 import { getTransactionAccount } from "@transactions/functions/create_transaction";
@@ -25,7 +23,6 @@ const create_transaction = async (app: FastifyInstance, _: RouteOptions) => {
         params: userAccuntIDParam,
         response: {
           201: transactionCreationAccepted,
-          400: z.undefined(),
           500: transactionRequestFailed,
         },
       },

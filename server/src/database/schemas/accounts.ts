@@ -11,14 +11,17 @@ import {
 } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
-import { USER_ACCOUNT_STATUS } from "@accounts/schemas";
+import { ACCOUNT_STATUS } from "@accounts/schemas";
 
 import {
   MAX_ACCOUNT_NAME_LENGTH,
   MAX_ACCOUNT_NUMER_LENGTH,
 } from "@accounts/schemas";
 
-const accountStatusEnum = pgEnum("status", USER_ACCOUNT_STATUS);
+import { TRANSACTION_STATUS } from "@transactions/schemas";
+
+const accountStatusEnum = pgEnum("account_status", ACCOUNT_STATUS);
+const transationStatusEnum = pgEnum("transaction_status", TRANSACTION_STATUS);
 
 export const accountsTable = pgTable("accounts", {
   id: char({ length: MAX_ACCOUNT_NUMER_LENGTH })
@@ -56,12 +59,12 @@ export const transactionsTable = pgTable("transactions", {
   credit_account_number: varchar({ length: 120 })
     .notNull()
     .references(() => accountsTable.number),
-  value: varchar().notNull(),
+  value: decimal<"number">({ precision: 11, scale: 2 }).notNull().default(0.0),
   creation_date: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
   update_date: timestamp("updated_at", { withTimezone: true }),
-  status: varchar({ length: 100 }).notNull().default("pending"),
+  status: transationStatusEnum().notNull().default("pending"),
   operation_id: integer()
     .notNull()
     .references(() => operationsTable.id),
@@ -75,6 +78,7 @@ export const ledgersTable = pgTable("ledgers", {
 export const accountTypesTable = pgTable("account-types", {
   id: smallint().unique().primaryKey().notNull(),
   name: varchar({ length: 255 }).notNull(),
+  long_name: varchar({ length: 255 }).notNull(),
   description: text().notNull(),
   balance_type: varchar({ length: 255 }).notNull(),
 });
@@ -82,5 +86,6 @@ export const accountTypesTable = pgTable("account-types", {
 export const operationsTable = pgTable("operations", {
   id: integer().unique().primaryKey().notNull(),
   name: varchar({ length: 255 }).notNull(),
+  long_name: varchar({ length: 255 }).notNull(),
   description: text().notNull(),
 });

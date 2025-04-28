@@ -4,25 +4,31 @@ import type { UserModel } from "@users/schemas";
 
 import { transactions } from "@db/queries/transactions";
 
+import { userAccuntIDParam } from "@accounts/schemas";
+
 import {
   listUserTransactionsCursor,
   listTransactionsQueryParams,
-  listTransactionsRsponse,
+  listAccountTransactionsRsponse,
 } from "@transactions/schemas";
 import { parseJsonPreprocessor } from "@/utils";
 
 import z from "zod";
 
-const listTransactions = async (app: FastifyInstance, _: RouteOptions) => {
+const listAccountTransactions = async (
+  app: FastifyInstance,
+  _: RouteOptions,
+) => {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
   route.get(
-    "/",
+    "/:account_id/transactions",
     {
       schema: {
+        params: userAccuntIDParam,
         querystring: listTransactionsQueryParams,
         response: {
-          200: listTransactionsRsponse,
+          200: listAccountTransactionsRsponse,
         },
       },
     },
@@ -48,7 +54,7 @@ const listTransactions = async (app: FastifyInstance, _: RouteOptions) => {
           app.pgdb,
           user.id,
           req.query.page_size,
-          undefined,
+          req.params.account_id,
           parsed.data,
         )
         .then((results) => {
@@ -98,4 +104,4 @@ const listTransactions = async (app: FastifyInstance, _: RouteOptions) => {
   );
 };
 
-export { listTransactions };
+export { listAccountTransactions };

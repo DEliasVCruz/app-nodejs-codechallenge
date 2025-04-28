@@ -19,7 +19,7 @@ const TRANSFER_FLAG_BY_TRANSACTION_STATUS: Record<
   rejected: TransferFlags.void_pending_transfer,
 };
 
-const ACCOUNT_STATUS = ["created", "pending", "declined"] as const;
+const ACCOUNT_STATUS = ["enabled", "disabled", "blocked"] as const;
 export type AccountStatus = (typeof ACCOUNT_STATUS)[number];
 
 const TRANSACTION_STATUS = ["approved", "rejected", "pending"] as const;

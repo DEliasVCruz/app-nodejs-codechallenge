@@ -4,7 +4,11 @@ import type { UserModel } from "@users/schemas";
 
 import z from "zod";
 
-import { listUserAccountsCursor } from "@accounts/schemas";
+import {
+  listUserAccountsCursor,
+  listAccountsQueryParams,
+  listAccountsResponse,
+} from "@accounts/schemas";
 import { parseJsonPreprocessor } from "@/utils";
 import { accounts } from "@db/queries/accounts";
 
@@ -15,12 +19,10 @@ const listAccounts = async (app: FastifyInstance, _: RouteOptions) => {
     "/",
     {
       schema: {
-        querystring: z.object({
-          currency: z.enum(["pen", "usd"]).optional(),
-          type: z.enum(["debit", "credit"]).optional(),
-          page_size: z.number().min(2).optional().default(10),
-          start_key: z.string().optional(),
-        }),
+        querystring: listAccountsQueryParams,
+        response: {
+          200: listAccountsResponse,
+        },
       },
     },
     async (req, res) => {
