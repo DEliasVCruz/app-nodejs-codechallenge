@@ -1,8 +1,15 @@
-import { inArray } from "drizzle-orm";
-import { transactionsTable } from "../schemas/accounts";
+import { and, eq, or, lt, desc, inArray } from "drizzle-orm";
+import {
+  transactionsTable,
+  operationsTable,
+  accountsTable,
+} from "@db/schemas/accounts";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import type { TransactionStatus } from "@transactions/schemas";
+import type {
+  TransactionStatus,
+  UserTransactionsListCursor,
+} from "@transactions/schemas";
 
 import { DateTime } from "luxon";
 
@@ -12,20 +19,6 @@ const insertBatch = async (
   db: NodePgDatabase,
   transaction: NewTransaction[],
 ) => {
-  console.log(
-    "The insert query",
-    db
-      .insert(transactionsTable)
-      .values(transaction)
-      .returning({
-        id: transactionsTable.id,
-        debit_account_id: transactionsTable.debit_account_number,
-        credit_account_id: transactionsTable.credit_account_number,
-        creation_date: transactionsTable.creation_date,
-        status: transactionsTable.status,
-      })
-      .toSQL(),
-  );
   const result = await db
     .insert(transactionsTable)
     .values(transaction)
@@ -68,7 +61,61 @@ const updateStatusBatch = async (
   return result;
 };
 
+const listUserTransactions = async (
+  db: NodePgDatabase,
+  userId: string,
+  pageSize: number,
+  accountId?: string,
+  cursor?: UserTransactionsListCursor,
+) => {
+  return await db
+    .select({
+      id: transactionsTable.id,
+      number: transactionsTable.number,
+      value: transactionsTable.value,
+      creation_date: transactionsTable.creation_date,
+      status: transactionsTable.status,
+      debit_account_number: transactionsTable.debit_account_number,
+      credit_account_number: transactionsTable.credit_account_number,
+      opertaion_name: operationsTable.name,
+      account_id: accountsTable.id,
+    })
+    .from(transactionsTable)
+    .innerJoin(
+      operationsTable,
+      eq(operationsTable.id, transactionsTable.operation_id),
+    )
+    .innerJoin(
+      accountsTable,
+      or(
+        eq(accountsTable.number, transactionsTable.debit_account_number),
+        eq(accountsTable.number, transactionsTable.credit_account_number),
+      ),
+    )
+    .where(
+      and(
+        eq(accountsTable.user_id, userId),
+        accountId ? eq(accountsTable.id, accountId) : undefined,
+        cursor
+          ? or(
+              lt(transactionsTable.creation_date, cursor.creation_date),
+              and(
+                eq(transactionsTable.creation_date, cursor.creation_date),
+                lt(transactionsTable.number, cursor.number),
+              ),
+            )
+          : undefined,
+      ),
+    )
+    .orderBy(
+      desc(transactionsTable.creation_date),
+      desc(transactionsTable.number),
+    )
+    .limit(pageSize + 1);
+};
+
 export const transactions = {
   updateStatusBatch,
   insertBatch,
+  listUserTransactions,
 };

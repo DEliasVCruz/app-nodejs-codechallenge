@@ -1,8 +1,15 @@
 import type { FastifyInstance, RouteOptions } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import type { UserModel } from "@users/schemas";
+
+import { transactions } from "@db/queries/transactions";
+
+import { listUserTransactionsCursor } from "@transactions/schemas";
+import { parseJsonPreprocessor } from "@/utils";
+
 import z from "zod";
 
-const list_transactions = async (app: FastifyInstance, _: RouteOptions) => {
+const listTransactions = async (app: FastifyInstance, _: RouteOptions) => {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
   route.get(
@@ -10,55 +17,81 @@ const list_transactions = async (app: FastifyInstance, _: RouteOptions) => {
     {
       schema: {
         querystring: z.object({
-          account_number: z
-            .optional(z.string().max(9))
-            .transform((val, ctx) => {
-              if (!val) {
-                return z.NEVER;
-              }
-
-              const parsed = parseInt(val);
-
-              if (isNaN(parsed)) {
-                ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
-                  message: "Not an account number",
-                });
-
-                // This is a special symbol you can use to
-                // return early from the transform function.
-                // It has type `never` so it does not affect the
-                // inferred return type.
-                return z.NEVER;
-              }
-
-              return parsed;
-            }),
-          type: z.optional(
-            z.enum(["savings", "personal_credit", "credit_line"]),
-          ),
-          currency: z.optional(z.enum(["pen", "usd"])),
+          page_size: z.number().min(2).optional().default(10),
+          start_key: z.string().optional(),
         }),
       },
     },
     async (req, res) => {
-      // Here we get list an account dire tly from the database
+      const user = req.getDecorator<UserModel>("user");
+
+      const schemaChecker = z.preprocess(
+        parseJsonPreprocessor,
+        listUserTransactionsCursor,
+      );
+
+      const startKey = req.query.start_key;
+
+      const decoded = Buffer.from(startKey ?? "", "base64").toString("utf8");
+      const parsed = schemaChecker.safeParse(decoded);
+
+      if (!parsed.success && req.query.start_key) {
+        console.log("malformed_cursor_string_received");
+      }
+
+      const result = await transactions
+        .listUserTransactions(
+          app.pgdb,
+          user.id,
+          req.query.page_size,
+          undefined,
+          parsed.data,
+        )
+        .then((results) => {
+          return { transactions: results, error: undefined };
+        })
+        .catch((e: Error) => {
+          console.log("list_account_matches_not_found");
+
+          return { transactions: [], error: e };
+        });
+
+      if (result.error) {
+        res.code(500);
+
+        return;
+      }
+
+      if (!result.transactions.length) {
+        res.code(404);
+
+        return;
+      }
+
+      if (result.transactions.length <= req.query.page_size) {
+        res.code(200);
+        return { transactions: result.transactions };
+      }
+
+      const lastHit = result.transactions[result.transactions.length - 2];
+      if (!lastHit) {
+        res.code(200);
+        return { accounts: result.transactions };
+      }
+
+      const nextKey = {
+        creation_date: lastHit.creation_date,
+        number: lastHit.number,
+      };
+
+      const nextCursor = Buffer.from(JSON.stringify(nextKey), "utf8").toString(
+        "base64",
+      );
 
       res.code(200);
-      res.send([
-        {
-          id: 1234234,
-          currency: req.query.currency,
-          type: req.query.type,
-        },
-        {
-          id: 1234235,
-          currency: req.query.currency,
-          type: req.query.type,
-        },
-      ]);
+      return { transactions: result.transactions, next: nextCursor };
     },
   );
 };
 
-export { list_transactions };
+export { listTransactions };

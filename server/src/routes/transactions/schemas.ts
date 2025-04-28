@@ -27,3 +27,12 @@ export const transactionCreationAccepted = z.object({
 export const transactionRequestFailed = z.object({
   message: z.string(),
 });
+
+export const listUserTransactionsCursor = z.object({
+  creation_date: z.coerce.date(),
+  number: z.string(),
+});
+
+export type UserTransactionsListCursor = z.infer<
+  typeof listUserTransactionsCursor
+>;
