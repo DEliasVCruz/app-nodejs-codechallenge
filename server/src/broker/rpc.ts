@@ -3,7 +3,7 @@ import pino, { type Logger } from "pino";
 
 import { z, type ZodSchema } from "zod";
 
-import { parseJsonPreprocessor } from "@bk/schemas";
+import { parseJsonPreprocessor } from "@/utils";
 
 import {
   Kafka,

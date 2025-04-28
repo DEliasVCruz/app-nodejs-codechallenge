@@ -1,7 +1,7 @@
 import type { EachBatchHandler } from "kafkajs";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { z, ZodIssueCode } from "zod";
+import { z } from "zod";
 
 import { handler as transactionCreatedHandler } from "@bk/handlers/transaction_created";
 import { handler as transactionUpdateHandler } from "@bk/handlers/transaction_updated";
@@ -16,21 +16,6 @@ export const CONSUMER_TOPICS = [
 ] as const;
 
 export type ConsumerTopics = (typeof CONSUMER_TOPICS)[number];
-
-export const parseJsonPreprocessor = (value: any, ctx: z.RefinementCtx) => {
-  if (typeof value === "string") {
-    try {
-      return JSON.parse(value);
-    } catch (e) {
-      ctx.addIssue({
-        code: ZodIssueCode.custom,
-        message: (e as Error).message,
-      });
-    }
-  }
-
-  return value;
-};
 
 export const accountCreatedMessage = z.object({
   account_number: z.string(),
