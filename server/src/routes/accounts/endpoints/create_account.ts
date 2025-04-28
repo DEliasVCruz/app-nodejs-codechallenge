@@ -69,14 +69,16 @@ const createAccount = async (app: FastifyInstance, _: RouteOptions) => {
       }
 
       const account = await accounts
-        .insertUserAccount(app.pgdb, {
-          name: req.body.name,
-          user_id: user.id,
-          id: nanoid(),
-          ledger_id: ledger,
-          number: account_number,
-          account_type_id: accountTypeId,
-        })
+        .insertUserAccounts(app.pgdb, [
+          {
+            name: req.body.name,
+            user_id: user.id,
+            id: nanoid(),
+            ledger_id: ledger,
+            number: account_number,
+            account_type_id: accountTypeId,
+          },
+        ])
         .onConflictDoNothing()
         .then((account) => {
           console.log("user_account_created");

@@ -64,6 +64,8 @@ const listUserAccounts = async (
       balance: accountsTable.balance,
       currency: ledgersTable.currency,
       status: accountsTable.status,
+      ledger_id: accountsTable.ledger_id,
+      creation_date: accountsTable.creation_date,
     })
     .from(accountsTable)
     .innerJoin(ledgersTable, eq(accountsTable.ledger_id, ledgersTable.id))
@@ -134,7 +136,7 @@ const getUserAccount = async (
 
 export type NewAccount = typeof accountsTable.$inferInsert;
 
-const insertUserAccount = (db: NodePgDatabase, account: NewAccount) => {
+const insertUserAccounts = (db: NodePgDatabase, account: NewAccount[]) => {
   return db.insert(accountsTable).values(account).returning({
     id: accountsTable.id,
     name: accountsTable.name,
@@ -145,7 +147,7 @@ const insertUserAccount = (db: NodePgDatabase, account: NewAccount) => {
 };
 
 export const accounts = {
-  insertUserAccount,
+  insertUserAccounts,
   getWithUserAccountNumbers,
   listUserAccounts,
   getUserAccount,

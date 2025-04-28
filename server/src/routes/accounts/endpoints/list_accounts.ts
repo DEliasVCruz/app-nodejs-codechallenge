@@ -18,7 +18,7 @@ const listAccounts = async (app: FastifyInstance, _: RouteOptions) => {
         querystring: z.object({
           currency: z.enum(["pen", "usd"]).optional(),
           type: z.enum(["debit", "credit"]).optional(),
-          page_size: z.number().optional().default(10),
+          page_size: z.number().min(2).optional().default(10),
           start_key: z.string().optional(),
         }),
       },
@@ -42,7 +42,7 @@ const listAccounts = async (app: FastifyInstance, _: RouteOptions) => {
       if (parsed.success) {
         currency = parsed.data.currency;
         type = parsed.data.type;
-      } else {
+      } else if (req.query.start_key) {
         console.log("malformed_cursor_string_received");
       }
 
@@ -82,8 +82,31 @@ const listAccounts = async (app: FastifyInstance, _: RouteOptions) => {
         return;
       }
 
+      if (result.accounts.length <= req.query.page_size) {
+        res.code(200);
+        return { accounts: result.accounts };
+      }
+
+      const lastHit = result.accounts[result.accounts.length - 2];
+      if (!lastHit) {
+        res.code(200);
+        return { accounts: result.accounts };
+      }
+
+      const nextKey = {
+        currency: lastHit.currency,
+        type: lastHit.type,
+        ledger_id: lastHit.ledger_id,
+        craetion_date: lastHit.creation_date,
+        number: lastHit.number,
+      };
+
+      const nextCursor = Buffer.from(JSON.stringify(nextKey), "utf8").toString(
+        "base64",
+      );
+
       res.code(200);
-      return result.accounts;
+      return { accounts: result.accounts, next: nextCursor };
     },
   );
 };
