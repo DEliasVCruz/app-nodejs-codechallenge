@@ -47,11 +47,12 @@ const getWithUserAccountNumbers = async (
   return account;
 };
 
-const getUserAccounts = async (
+const listUserAccounts = async (
   db: NodePgDatabase,
-  user_id: string,
-  page_size: number,
-  balance_type: "debit" | "credit",
+  userId: string,
+  pageSize: number,
+  balanceType?: "debit" | "credit",
+  currency?: string,
   cursor?: UserAccountsListCursor,
 ) => {
   return await db
@@ -72,11 +73,14 @@ const getUserAccounts = async (
     )
     .where(
       and(
-        eq(accountsTable.user_id, user_id),
-        eq(accountTypesTable.balance_type, balance_type),
+        eq(accountsTable.user_id, userId),
+        balanceType
+          ? eq(accountTypesTable.balance_type, balanceType)
+          : undefined,
+        currency ? eq(ledgersTable.currency, currency) : undefined,
         cursor
           ? or(
-              gt(accountsTable.ledger_id, cursor?.ledger_id),
+              gt(accountsTable.ledger_id, cursor.ledger_id),
               and(
                 eq(accountsTable.ledger_id, cursor.ledger_id),
                 gt(accountsTable.creation_date, cursor.creation_date),
@@ -95,7 +99,7 @@ const getUserAccounts = async (
       asc(accountsTable.creation_date),
       asc(accountsTable.number),
     )
-    .limit(page_size + 1);
+    .limit(pageSize + 1);
 };
 
 const getUserAccount = async (
@@ -118,8 +122,8 @@ const getUserAccount = async (
       status: accountsTable.status,
     })
     .from(accountsTable)
-    .leftJoin(ledgersTable, eq(accountsTable.ledger_id, ledgersTable.id))
-    .leftJoin(
+    .innerJoin(ledgersTable, eq(accountsTable.ledger_id, ledgersTable.id))
+    .innerJoin(
       accountTypesTable,
       eq(accountsTable.account_type_id, accountTypesTable.id),
     )
@@ -143,6 +147,6 @@ const insertUserAccount = (db: NodePgDatabase, account: NewAccount) => {
 export const accounts = {
   insertUserAccount,
   getWithUserAccountNumbers,
-  getUserAccounts,
+  listUserAccounts,
   getUserAccount,
 };

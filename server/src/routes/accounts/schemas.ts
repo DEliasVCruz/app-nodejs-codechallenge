@@ -98,14 +98,27 @@ export const userAccuntIDParam = z.object({
 });
 
 export const userAccountResponseModel = z.object({
-  account_number: z.number(),
-  currency: z.enum(ACCOUNT_CURRENCY_TYPES),
-  balance: z.number(),
-  type: z.enum(ACCOUNT_TYPES),
-  max_balance: z.nullable(z.number()),
+  id: z.string(),
+  number: z.string(),
   name: z.string(),
+  type: z.string(),
+  balance: z.number(),
+  balance_type: z.string(),
+  currency: z.string(),
+  creation_date: z.date(),
+  update_date: z.date().nullable(),
+  max_balance: z.number().nullable(),
+  status: z.enum(USER_ACCOUNT_STATUS),
 });
 
 export const getAccountRequest = z.object({
   account_number: z.number(),
+});
+
+export const listUserAccountsCursor = z.object({
+  currency: z.enum(["pen", "usd"]).optional(),
+  type: z.enum(["debit", "credit"]).optional(),
+  ledger_id: z.number(),
+  craetion_date: z.coerce.date(),
+  number: z.string(),
 });

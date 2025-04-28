@@ -68,12 +68,12 @@ app
     addHook: false,
     keys: new Set([]),
     auth: (key, req) => {
-      const admin_key = process.env.ADMIN_KEY ?? "";
-      if (!admin_key) {
+      const adminKey = process.env.ADMIN_KEY ?? "";
+      if (!adminKey) {
         return false;
       }
 
-      if (key != admin_key) {
+      if (key != adminKey) {
         return false;
       }
 

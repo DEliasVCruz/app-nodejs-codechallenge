@@ -22,7 +22,7 @@ import type { UserModel } from "@users/schemas";
 
 import type { AccountCreateRpcClient } from "@accounts/schemas";
 
-const create_account = async (app: FastifyInstance, _: RouteOptions) => {
+const createAccount = async (app: FastifyInstance, _: RouteOptions) => {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
   route.post(
@@ -80,7 +80,7 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
         .onConflictDoNothing()
         .then((account) => {
           console.log("user_account_created");
-          return account;
+          return account[0];
         })
         .catch((e: Error) => {
           console.error(e);
@@ -94,9 +94,9 @@ const create_account = async (app: FastifyInstance, _: RouteOptions) => {
 
       res.code(201);
 
-      return account[0];
+      return account;
     },
   );
 };
 
-export { create_account };
+export { createAccount };

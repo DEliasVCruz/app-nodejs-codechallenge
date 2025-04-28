@@ -1,9 +1,13 @@
 import type { FastifyInstance, RouteOptions } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 
-import { userAccuntIDParam } from "@accounts/schemas";
+import type { UserModel } from "@users/schemas";
 
-const get_account = async (app: FastifyInstance, _: RouteOptions) => {
+import { userAccuntIDParam, userAccountResponseModel } from "@accounts/schemas";
+
+import { accounts } from "@db/queries/accounts";
+
+const getAccount = async (app: FastifyInstance, _: RouteOptions) => {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
   route.get(
@@ -11,17 +15,41 @@ const get_account = async (app: FastifyInstance, _: RouteOptions) => {
     {
       schema: {
         params: userAccuntIDParam,
+        response: {
+          200: userAccountResponseModel,
+        },
       },
     },
     async (req, res) => {
-      // Here we get an account dire tly from the database
+      const user = req.getDecorator<UserModel>("user");
+
+      const result = await accounts
+        .getUserAccount(app.pgdb, user.id, req.params.account_id)
+        .then((accounts) => {
+          return { accounts: accounts, error: undefined };
+        })
+        .catch((e: Error) => {
+          console.error(e);
+
+          return { value: [], error: e };
+        });
+
+      if (result.error) {
+        res.code(500);
+
+        return;
+      }
+
+      if (result.accounts.length) {
+        res.code(404);
+
+        return;
+      }
 
       res.code(200);
-      res.send({
-        id: req.params.account_id,
-      });
+      return result.accounts[0];
     },
   );
 };
 
-export { get_account };
+export { getAccount };

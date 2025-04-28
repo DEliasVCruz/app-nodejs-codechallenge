@@ -1,8 +1,14 @@
 import type { FastifyInstance, RouteOptions } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import type { UserModel } from "@users/schemas";
+
 import z from "zod";
 
-const list_accounts = async (app: FastifyInstance, _: RouteOptions) => {
+import { listUserAccountsCursor } from "@accounts/schemas";
+import { parseJsonPreprocessor } from "@/utils";
+import { accounts } from "@db/queries/accounts";
+
+const listAccounts = async (app: FastifyInstance, _: RouteOptions) => {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
   route.get(
@@ -10,29 +16,76 @@ const list_accounts = async (app: FastifyInstance, _: RouteOptions) => {
     {
       schema: {
         querystring: z.object({
-          currency: z.enum(["pen", "usd"]),
-          type: z.enum(["savings", "personal_credit", "credit_line"]),
+          currency: z.enum(["pen", "usd"]).optional(),
+          type: z.enum(["debit", "credit"]).optional(),
+          page_size: z.number().optional().default(10),
+          start_key: z.string().optional(),
         }),
       },
     },
     async (req, res) => {
-      // Here we get list an account dire tly from the database
+      const user = req.getDecorator<UserModel>("user");
+
+      let currency = req.query.currency;
+      let type = req.query.type;
+
+      const schemaChecker = z.preprocess(
+        parseJsonPreprocessor,
+        listUserAccountsCursor,
+      );
+
+      const startKey = req.query.start_key;
+
+      const decoded = Buffer.from(startKey ?? "", "base64").toString("utf8");
+      const parsed = schemaChecker.safeParse(decoded);
+
+      if (parsed.success) {
+        currency = parsed.data.currency;
+        type = parsed.data.type;
+      } else {
+        console.log("malformed_cursor_string_received");
+      }
+
+      const result = await accounts
+        .listUserAccounts(
+          app.pgdb,
+          user.id,
+          req.query.page_size,
+          type,
+          currency,
+          parsed.success
+            ? {
+                ledger_id: parsed.data.ledger_id,
+                creation_date: parsed.data.craetion_date,
+                number: parsed.data.number,
+              }
+            : undefined,
+        )
+        .then((results) => {
+          return { accounts: results, error: undefined };
+        })
+        .catch((e: Error) => {
+          console.log("list_account_matches_not_found");
+
+          return { accounts: [], error: e };
+        });
+
+      if (result.error) {
+        res.code(500);
+
+        return;
+      }
+
+      if (!result.accounts.length) {
+        res.code(404);
+
+        return;
+      }
 
       res.code(200);
-      res.send([
-        {
-          id: 1234234,
-          currency: req.query.currency,
-          type: req.query.type,
-        },
-        {
-          id: 1234235,
-          currency: req.query.currency,
-          type: req.query.type,
-        },
-      ]);
+      return result.accounts;
     },
   );
 };
 
-export { list_accounts };
+export { listAccounts };
